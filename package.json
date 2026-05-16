@@ -1,0 +1,48 @@
+{
+  "name": "my-app-final",
+  "homepage": "https://Zein-Alkhnaisee.github.io/Emergency-website/",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "predeploy":"npm run build",
+    "deploy":"gh-pages -d dist"
+  },
+  "dependencies": {
+    "@reduxjs/toolkit": "^2.11.2",
+    "aos": "^2.3.4",
+    "autoprefixer": "^10.5.0",
+    "geolib": "^3.3.14",
+    "i18next": "^26.0.8",
+    "i18next-browser-languagedetector": "^8.2.1",
+    "leaflet": "^1.9.4",
+    "postcss": "^8.5.13",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-i18next": "^17.0.6",
+    "react-icons": "^5.6.0",
+    "react-leaflet": "^4.2.1",
+    "react-redux": "^9.2.0",
+    "react-router-dom": "^7.15.1",
+    "react-scroll": "^1.9.3",
+    "react-slick": "^0.29.0",
+    "slick-carousel": "^1.8.1",
+    "tailwindcss": "^3.4.17"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@types/react-slick": "^0.23.13",
+    "@vitejs/plugin-react": "^6.0.1",
+    "eslint": "^10.2.1",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.2",
+    "globals": "^17.5.0",
+    "vite": "^8.0.10"
+  }
+}

@@ -1,242 +1,197 @@
-import React, { useState, useCallback } from 'react';
+import { useState, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
-import { addPost } from '../../redux/slices/postsSlice';
-import { FaTimes, FaImage, FaCheckCircle } from 'react-icons/fa';
-import Button from '../Shared/Button';
-
-// ✅ التحسين: Toast بسيط بدل alert()
-const Toast = ({ message, onClose }) => (
-  <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] flex items-center gap-3 bg-gray-900 text-white px-6 py-3 rounded-2xl shadow-2xl animate-fade-in">
-    <FaCheckCircle className="text-green-400 text-xl" />
-    <span className="text-sm font-medium">{message}</span>
-    <button onClick={onClose} className="text-gray-400 hover:text-white ml-2">
-      <FaTimes />
-    </button>
-  </div>
-);
+import { FaTimes, FaImage, FaSpinner, FaCheckCircle } from 'react-icons/fa';
+import { createPost } from '../../redux/slices/postsSlice';
+import { fetchPosts } from '../../redux/slices/postsSlice';
 
 const CreatePostModal = ({ isOpen, onClose }) => {
   const { t } = useTranslation();
   const dispatch = useDispatch();
-  const { currentUser } = useSelector((state) => state.user);
+  const { submitting, error } = useSelector(s => s.posts);
 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [category, setCategory] = useState('نصائح');
-  const [image, setImage] = useState(null);
-  const [imagePreview, setImagePreview] = useState(null);
-  const [toast, setToast] = useState(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [coverImageFile, setCoverImageFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [success, setSuccess] = useState(false);
+  const fileInputRef = useRef(null);
 
-  // ✅ التحسين: معاينة الصورة قبل الرفع
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    setImage(file);
-    const reader = new FileReader();
-    reader.onloadend = () => setImagePreview(reader.result);
-    reader.readAsDataURL(file);
-  };
-
-  const showToast = (msg) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 3500);
-  };
-
-  const resetForm = useCallback(() => {
-    setTitle('');
-    setContent('');
-    setCategory('نصائح');
-    setImage(null);
-    setImagePreview(null);
-  }, []);
-
-  const handleClose = () => {
-    resetForm();
-    onClose();
+    setCoverImageFile(file);
+    setPreviewUrl(URL.createObjectURL(file));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!title.trim() || !content.trim()) return;
 
-    setIsSubmitting(true);
+    try {
+      await dispatch(createPost({ title: title.trim(), content: content.trim(), coverImageFile })).unwrap();
+      setSuccess(true);
+      // أعد تحميل المقالات بعد ثانيتين ثم أغلق
+      setTimeout(() => {
+        dispatch(fetchPosts({ page: 1, perPage: 10 }));
+        handleClose();
+      }, 1500);
+    } catch {
+      // الخطأ محفوظ في state.posts.error
+    }
+  };
 
-    const isPublisher = currentUser?.roles?.includes('publisher');
-
-    const newPost = {
-      id: Date.now().toString(),
-      title: title.trim(),
-      content: content.trim(),
-      category,
-      // ✅ التحسين: avatar من بيانات المستخدم الفعلية، وليس Math.random()
-      author: {
-        id: currentUser?.id || 'user_temp',
-        name: currentUser?.name || 'مستخدم جديد',
-        avatar: currentUser?.avatar || null,
-        role: isPublisher ? 'publisher' : 'user',
-      },
-      coverImage: imagePreview || null,
-      likes: 0,
-      dislikes: 0,
-      comments: [],
-      views: 0,
-      publishedAt: new Date().toISOString(),
-      isLikedByUser: false,
-      isDislikedByUser: false,
-      status: isPublisher ? 'published' : 'pending',
-    };
-
-    dispatch(addPost(newPost));
-    setIsSubmitting(false);
-    resetForm();
+  const handleClose = () => {
+    if (submitting) return;
+    setTitle('');
+    setContent('');
+    setCoverImageFile(null);
+    setPreviewUrl(null);
+    setSuccess(false);
     onClose();
-
-    // ✅ التحسين: Toast بدل alert()
-    showToast(
-      t('posts.postSubmitted', {
-        status: isPublisher ? t('posts.published') : t('posts.pending'),
-      })
-    );
   };
 
   if (!isOpen) return null;
 
   return (
-    <>
+    <div
+      className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
+      onClick={handleClose}
+    >
       <div
-        className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
-        onClick={handleClose}
+        className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl"
+        onClick={e => e.stopPropagation()}
       >
-        <div
-          className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-100 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-800 z-10">
-            <h2 className="text-2xl font-bold text-gray-800 dark:text-white">
-              {t('posts.createPost')}
-            </h2>
-            <button
-              onClick={handleClose}
-              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
-              aria-label={t('common.close')}
-            >
-              <FaTimes className="text-xl" />
-            </button>
-          </div>
+        {/* Header */}
+        <div className="flex justify-between items-center p-5 border-b border-gray-100 dark:border-gray-700">
+          <h3 className="text-xl font-bold text-gray-800 dark:text-white">
+            {t('posts.createPost')}
+          </h3>
+          <button
+            onClick={handleClose}
+            disabled={submitting}
+            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition disabled:opacity-40"
+          >
+            <FaTimes />
+          </button>
+        </div>
 
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="p-6 space-y-5">
+        {/* Success state */}
+        {success ? (
+          <div className="flex flex-col items-center justify-center py-16 gap-4">
+            <FaCheckCircle className="text-green-500 text-5xl" />
+            <p className="text-gray-700 dark:text-gray-200 font-medium text-lg text-center">
+              {t('posts.postSubmitted', { status: t('posts.pending') })}
+            </p>
+            <p className="text-sm text-gray-400 text-center">
+              {t('posts.pendingReview')}
+            </p>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="p-5 space-y-4">
+            {/* Error */}
+            {error && (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-3">
+                <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
+              </div>
+            )}
+
             {/* العنوان */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                {t('posts.title')}
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                {t('posts.titlePlaceholder').replace('...', '')} <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-primary transition-shadow"
+                onChange={e => setTitle(e.target.value)}
                 placeholder={t('posts.titlePlaceholder')}
+                maxLength={255}
                 required
-                maxLength={120}
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition"
               />
-              <p className="text-xs text-gray-400 mt-1 text-left">{title.length}/120</p>
-            </div>
-
-            {/* التصنيف */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                {t('posts.category')}
-              </label>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-primary transition-shadow"
-              >
-                <option value="نصائح">💡 نصائح</option>
-                <option value="إسعافات">🚑 إسعافات</option>
-                <option value="سلامة">🛡️ سلامة</option>
-                <option value="تعليمي">📚 تعليمي</option>
-              </select>
+              <p className="text-xs text-gray-400 mt-1 text-end">{title.length}/255</p>
             </div>
 
             {/* المحتوى */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                {t('posts.content')}
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                {t('posts.contentPlaceholder').replace('...', '')} <span className="text-red-500">*</span>
               </label>
               <textarea
                 value={content}
-                onChange={(e) => setContent(e.target.value)}
-                rows="7"
-                className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-primary transition-shadow resize-none"
+                onChange={e => setContent(e.target.value)}
                 placeholder={t('posts.contentPlaceholder')}
+                rows={6}
                 required
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition resize-none"
               />
             </div>
 
-            {/* رفع الصورة مع معاينة */}
+            {/* الصورة */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                <FaImage className="inline mr-2" /> {t('posts.image')}
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                {t('posts.image')} <span className="text-gray-400 text-xs">{t('posts.imageOptional')}</span>
               </label>
-              <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-4 text-center hover:border-primary transition-colors">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  className="hidden"
-                  id="image-upload"
-                />
-                <label htmlFor="image-upload" className="cursor-pointer text-gray-500 hover:text-primary transition-colors">
-                  {image ? image.name : t('posts.clickToUpload')}
-                </label>
-              </div>
 
-              {/* ✅ التحسين: معاينة الصورة */}
-              {imagePreview && (
-                <div className="relative mt-3">
+              {previewUrl ? (
+                <div className="relative rounded-xl overflow-hidden">
                   <img
-                    src={imagePreview}
-                    alt="preview"
+                    src={previewUrl}
+                    alt={t('posts.preview')}
                     className="w-full h-48 object-cover rounded-xl"
                   />
                   <button
                     type="button"
-                    onClick={() => { setImage(null); setImagePreview(null); }}
-                    className="absolute top-2 right-2 bg-black/60 text-white rounded-full p-1.5 hover:bg-black/80 transition-colors"
+                    onClick={() => { setCoverImageFile(null); setPreviewUrl(null); }}
+                    className="absolute top-2 right-2 bg-black/50 text-white rounded-full w-7 h-7 flex items-center justify-center hover:bg-black/70 transition"
                   >
-                    <FaTimes className="text-sm" />
+                    <FaTimes className="text-xs" />
                   </button>
                 </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full h-32 border-2 border-dashed border-gray-200 dark:border-gray-600 rounded-xl flex flex-col items-center justify-center gap-2 text-gray-400 hover:border-primary hover:text-primary transition"
+                >
+                  <FaImage className="text-2xl" />
+                  <span className="text-sm">{t('posts.clickToUpload')}</span>
+                </button>
               )}
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/jpg,image/webp"
+                onChange={handleImageChange}
+                className="hidden"
+              />
             </div>
 
-            {/* أزرار */}
+            {/* الأزرار */}
             <div className="flex justify-end gap-3 pt-2">
-              <Button
-                text={t('common.cancel')}
-                bgColor="bg-gray-100 dark:bg-gray-700"
-                textColor="text-gray-700 dark:text-gray-200"
-                handler={handleClose}
-              />
-              <Button
-                text={isSubmitting ? '...' : t('posts.publish')}
-                bgColor="bg-primary"
-                textColor="text-white"
-                disabled={isSubmitting}
-              />
+              <button
+                type="button"
+                onClick={handleClose}
+                disabled={submitting}
+                className="px-5 py-2.5 rounded-xl text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition disabled:opacity-40"
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                type="submit"
+                disabled={submitting || !title.trim() || !content.trim()}
+                className="px-6 py-2.5 rounded-xl text-sm font-medium bg-primary text-white hover:bg-primary/90 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {submitting && <FaSpinner className="animate-spin text-xs" />}
+                {submitting ? t('posts.publishing') : t('posts.publish')}
+              </button>
             </div>
           </form>
-        </div>
+        )}
       </div>
-
-      {/* Toast Notification */}
-      {toast && <Toast message={toast} onClose={() => setToast(null)} />}
-    </>
+    </div>
   );
 };
 

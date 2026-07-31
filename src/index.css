@@ -2,21 +2,60 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── تحميل الخطوط من Google Fonts ── */
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap');
+
 @layer base {
-  html[dir="rtl"] {
-    direction: rtl;
+  /* منع layout shift */
+  *, *::before, *::after {
+    box-sizing: border-box;
   }
-  html[dir="ltr"] {
-    direction: ltr;
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+
+  html[dir="rtl"] { direction: rtl; }
+  html[dir="ltr"] { direction: ltr; }
+
+  body {
+    /* ✅ استخدام Cairo كخط أساسي (يدعم العربية واللاتينية معاً) مع Poppins كاحتياطي للإنجليزية */
+    font-family: 'Cairo', 'Poppins', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-y: scroll;
+  }
+
+  /* منع CLS للصور */
+  img, video, svg {
+    max-width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  /* تحسين contrast للنص الرمادي (Accessibility) */
+  .text-gray-400 { color: #6b7280 !important; }
+  .dark .text-gray-400 { color: #9ca3af !important; }
+
+  /* تحسين focus للـ accessibility */
+  :focus-visible {
+    outline: 2px solid #F42C37;
+    outline-offset: 2px;
   }
 }
 
 @layer components {
   .nav-link {
-    @apply px-4 py-2 font-semibold text-gray-600 hover:text-black dark:text-gray-300 dark:hover:text-white transition-colors cursor-pointer;
+    @apply px-4 py-2 font-semibold text-gray-700 hover:text-primary dark:text-gray-300 dark:hover:text-white transition-colors cursor-pointer;
   }
   .nav-link.active {
     @apply text-primary dark:text-primary;
+  }
+
+  /* أزرار touch targets — 44×44px minimum (WCAG 2.5.5) */
+  .touch-target {
+    @apply min-w-[44px] min-h-[44px] inline-flex items-center justify-center;
   }
 }
 
@@ -24,18 +63,80 @@
   .hero-bg-color {
     @apply bg-gradient-to-r from-gray-300/80 to-gray-100 dark:from-gray-600 dark:to-gray-700 dark:text-white;
   }
-}
-@keyframes slideIn {
-  from {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
+
+  /* custom scrollbar */
+  .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+  .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+  .custom-scrollbar::-webkit-scrollbar-thumb { @apply bg-gray-300 dark:bg-gray-600 rounded-full; }
 }
 
-.animate-slide-in {
-  animation: slideIn 0.3s ease-out;
+/* ── Animations ── */
+@keyframes slideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+@keyframes slideInDown {
+  from { transform: translateY(-12px); opacity: 0; }
+  to   { transform: translateY(0);     opacity: 1; }
+}
+@keyframes fadeUp {
+  from { transform: translateY(16px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes bubblePop {
+  0%   { transform: scale(0.92) translateY(6px); opacity: 0; }
+  100% { transform: scale(1) translateY(0);      opacity: 1; }
+}
+
+.animate-slide-in      { animation: slideIn 0.3s ease-out both; }
+.animate-slide-in-down { animation: slideInDown 0.2s ease-out both; }
+.animate-fade-up       { animation: fadeUp 0.4s ease-out both, bubblePop 0.25s ease-out both; }
+.animate-fade-in       { animation: fadeIn 0.3s ease both; }
+
+/* ── Ripple effect للأزرار ── */
+.btn-ripple {
+  position: relative;
+  overflow: hidden;
+}
+.btn-ripple::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(255,255,255,0.15);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.btn-ripple:active::after { opacity: 1; }
+
+/* ── Touch targets (Accessibility WCAG 2.5.5) ── */
+button,
+a[role="button"],
+[role="button"],
+input[type="submit"],
+input[type="button"] {
+  min-height: 44px;
+}
+.btn-sm { min-height: 32px; }
+
+/* ── Skeleton loading animation ── */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 8px;
+}
+.dark .skeleton {
+  background: linear-gradient(90deg, #374151 25%, #4b5563 50%, #374151 75%);
+  background-size: 200% 100%;
 }

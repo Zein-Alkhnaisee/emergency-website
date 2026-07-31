@@ -1,121 +1,204 @@
+// src/components/Courses/CourseCard.jsx
 import React, { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
-import { FaStar, FaRegStar, FaClock, FaUserGraduate, FaDollarSign, FaFlag, FaCheckCircle, FaUpload, FaExternalLinkAlt } from 'react-icons/fa';
+import {
+  FaStar, FaRegStar, FaClock, FaUserGraduate,
+  FaDollarSign, FaFlag, FaUpload, FaExternalLinkAlt,
+} from 'react-icons/fa';
 import { reportCourse, addCertificate } from '../../redux/slices/coursesSlice';
-import Button from '../Shared/Button';
+import RateCourseModal from './RateCourseModal';
 
-const CourseCard = ({ course, index }) => {
-    const { t } = useTranslation();
-    const dispatch = useDispatch();
-    const { currentUser } = useSelector(state => state.user);
-    const [showCertUpload, setShowCertUpload] = useState(false);
-    const [certImage, setCertImage] = useState(null);
+// ── Stars ────────────────────────────────────────────────────
+const StarRating = ({ rating }) => (
+  <div className="flex items-center gap-0.5" aria-label={`تقييم ${rating} من 5 نجوم`} role="img">
+    {Array.from({ length: 5 }, (_, i) =>
+      i < Math.round(rating)
+        ? <FaStar key={i} className="text-yellow-400 text-xs" aria-hidden="true" />
+        : <FaRegStar key={i} className="text-gray-300 dark:text-gray-600 text-xs" aria-hidden="true" />
+    )}
+    <span className="sr-only">{rating} من 5</span>
+  </div>
+);
 
-    const handleReport = () => {
-        if (window.confirm(t('courses.confirmReport'))) {
-            dispatch(reportCourse(course.id));
-            alert(t('courses.reported'));
-        }
-    };
+const CourseCard = ({ course, index, isTrusted = false }) => {
+  const { t } = useTranslation();
+  const dispatch = useDispatch();
+  const currentUser = useSelector(s => s.user.currentUser);
+  const [showCertUpload, setShowCertUpload] = useState(false);
+  const [imgError, setImgError] = useState(false);
+  const [showRateModal, setShowRateModal] = useState(false);
 
-    const handleCertUpload = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            setCertImage(URL.createObjectURL(file));
-            dispatch(addCertificate({ userId: currentUser?.id, courseId: course.id, image: URL.createObjectURL(file) }));
-            alert(t('courses.certUploaded'));
-            setShowCertUpload(false);
-        }
-    };
+  const {
+    id,
+    title,
+    description,
+    provider,
+    official_url: url,
+    language,
+    duration,
+    level,
+    price_type,
+    price,
+    has_certificate: certificateRequired,
+    category,
+  } = course;
 
-    const renderStars = (rating) => {
-        const stars = [];
-        for (let i = 1; i <= 5; i++) {
-            stars.push(
-                i <= rating ? <FaStar key={i} className="text-yellow-400" /> : <FaRegStar key={i} className="text-gray-400" />
-            );
-        }
-        return stars;
-    };
+  const handleReport = () => {
+    if (window.confirm(t('courses.confirmReport'))) {
+      dispatch(reportCourse(id));
+      alert(t('courses.reported'));
+    }
+  };
 
-    return (
+  const handleCertUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    dispatch(addCertificate({
+      userId: currentUser?.id,
+      courseId: id,
+      image: URL.createObjectURL(file),
+    }));
+    alert(t('courses.certUploaded'));
+    setShowCertUpload(false);
+  };
+
+  const displayPrice = price_type === 'free' ? t('courses.free') : (price ? `${price} $` : t('common.unknown'));
+
+  return (
+    <>
+      <article
+        data-aos="fade-up"
+        data-aos-duration="500"
+        data-aos-delay={Math.min(index * 80, 400)}
+        className="group bg-white dark:bg-gray-800 rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden border border-gray-100 dark:border-gray-700/60 hover:-translate-y-1 flex flex-col"
+      >
         <div
-            data-aos="fade-up"
-            data-aos-duration="600"
-            data-aos-delay={index * 100}
-            className="group bg-white dark:bg-gray-800 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-500 overflow-hidden border border-gray-100 dark:border-gray-700 hover:-translate-y-2"
+          className="relative bg-gradient-to-br from-primary/8 to-secondary/8 flex items-center justify-center overflow-hidden"
+          style={{ aspectRatio: '16/7' }}
         >
-            {/* الغلاف العلوي مع شعار المنصة */}
-            <div className="relative h-40 bg-gradient-to-r from-primary/20 to-secondary/20 flex items-center justify-center">
-                <img src={course.platformIcon} alt={course.platform} className="h-12 object-contain opacity-70 group-hover:opacity-100 transition" />
-                {course.price === 'مجاني' && (
-                    <span className="absolute top-3 left-3 bg-green-500 text-white px-2 py-1 rounded-full text-xs font-bold shadow-md">
-                        {t('courses.free')}
-                    </span>
-                )}
-                <button
-                    onClick={handleReport}
-                    className="absolute top-3 right-3 bg-white/80 dark:bg-gray-900/80 p-2 rounded-full hover:scale-110 transition"
-                >
-                    <FaFlag className="text-red-500" />
-                </button>
+          <div className="flex items-center justify-center h-full w-full">
+            <div className="text-4xl text-primary/30 group-hover:text-primary/60 transition-colors">
+              📚
             </div>
+          </div>
 
-            <div className="p-5">
-                <div className="flex justify-between items-start mb-2">
-                    <span className="bg-primary/10 text-primary text-xs px-3 py-1 rounded-full">{course.category}</span>
-                    <div className="flex items-center gap-1 text-sm">
-                        {renderStars(course.rating)}
-                        <span className="text-gray-500 ml-1">({course.rating})</span>
-                    </div>
-                </div>
+          {price_type === 'free' && (
+            <span className="absolute top-3 start-3 bg-emerald-500 text-white px-2.5 py-0.5 rounded-full text-xs font-bold">
+              {t('courses.free')}
+            </span>
+          )}
 
-                <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-2 line-clamp-2 group-hover:text-primary transition">
-                    {course.title}
-                </h3>
-                <p className="text-gray-600 dark:text-gray-300 text-sm line-clamp-2 mb-3">{course.description}</p>
-
-                <div className="flex flex-wrap gap-3 text-sm text-gray-500 mb-4">
-                    <div className="flex items-center gap-1"><FaUserGraduate /> {course.studentsCount.toLocaleString()}</div>
-                    <div className="flex items-center gap-1"><FaClock /> {course.duration}</div>
-                    <div className="flex items-center gap-1"><FaDollarSign /> {course.price}</div>
-                </div>
-
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <img src={course.teacher.avatar} alt="" className="w-8 h-8 rounded-full ring-1 ring-primary" />
-                        <span className="text-sm font-medium">{course.teacher.name}</span>
-                    </div>
-                    <a
-                        href={course.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary hover:text-primary/70 transition flex items-center gap-1 text-sm font-semibold"
-                    >
-                        {t('courses.viewCourse')} <FaExternalLinkAlt className="text-xs" />
-                    </a>
-                </div>
-
-                {/* رفع الشهادة */}
-                {currentUser && course.certificateRequired && (
-                    <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700">
-                        <button
-                            onClick={() => setShowCertUpload(!showCertUpload)}
-                            className="text-sm text-primary hover:underline flex items-center gap-1"
-                        >
-                            <FaUpload /> {t('courses.uploadCertificate')}
-                        </button>
-                        {showCertUpload && (
-                            <div className="mt-2">
-                                <input type="file" accept="image/*" onChange={handleCertUpload} className="text-sm" />
-                            </div>
-                        )}
-                    </div>
-                )}
-            </div>
+          <button
+            onClick={handleReport}
+            aria-label={`الإبلاغ عن دورة ${title}`}
+            className="absolute top-3 end-3 bg-white/80 dark:bg-gray-900/80 p-2 rounded-full hover:bg-red-50 dark:hover:bg-red-900/30 transition shadow-sm min-w-[36px] min-h-[36px] flex items-center justify-center"
+          >
+            <FaFlag className="text-red-400 text-xs" aria-hidden="true" />
+          </button>
         </div>
-    );
+
+        <div className="p-5 flex flex-col flex-1">
+          <div className="flex justify-between items-center mb-3">
+            <span className="bg-primary/10 text-primary text-xs px-2.5 py-1 rounded-full font-medium truncate max-w-[120px]">
+              {category?.name || t('courses.uncategorized')}
+            </span>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <StarRating rating={0} />
+              <span className="text-gray-500 text-xs">(0)</span>
+            </div>
+          </div>
+
+          <h3 className="text-sm font-bold text-gray-800 dark:text-white mb-2 line-clamp-2 group-hover:text-primary transition-colors leading-snug">
+            {title}
+          </h3>
+          <p className="text-gray-500 dark:text-gray-400 text-xs line-clamp-2 mb-4 leading-relaxed flex-1">
+            {description}
+          </p>
+
+          <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-400 mb-4">
+            <span className="flex items-center gap-1">
+              <FaUserGraduate className="text-primary/60" aria-hidden="true" />
+              {provider || t('courses.unknownProvider')}
+            </span>
+            <span className="flex items-center gap-1">
+              <FaClock className="text-primary/60" aria-hidden="true" />
+              {duration || t('common.unknown')}
+            </span>
+            <span className="flex items-center gap-1">
+              <FaDollarSign className="text-primary/60" aria-hidden="true" />
+              {displayPrice}
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="text-[10px] uppercase">{language || 'ar'}</span>
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-gray-700/50">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                <span className="text-xs font-bold text-primary">?</span>
+              </div>
+              <span className="text-xs font-medium text-gray-600 dark:text-gray-300 truncate">
+                {provider || t('courses.unknownProvider')}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`عرض دورة ${title} على ${provider}`}
+                className="flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary/70 transition-colors shrink-0 ms-2"
+              >
+                {t('courses.viewCourse')}
+                <FaExternalLinkAlt className="text-[9px]" aria-hidden="true" />
+              </a>
+              {isTrusted && (
+                <button
+                  onClick={() => setShowRateModal(true)}
+                  className="text-xs bg-yellow-500 text-white px-3 py-1 rounded-full hover:bg-yellow-600 transition"
+                >
+                  {t('courses.rate')}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {currentUser && certificateRequired && (
+            <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700/50">
+              <button
+                onClick={() => setShowCertUpload(v => !v)}
+                aria-expanded={showCertUpload}
+                className="text-xs text-primary hover:text-primary/70 flex items-center gap-1.5 transition-colors"
+              >
+                <FaUpload className="text-[10px]" aria-hidden="true" />
+                {t('courses.uploadCertificate')}
+              </button>
+              {showCertUpload && (
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleCertUpload}
+                  aria-label="اختر صورة الشهادة"
+                  className="mt-2 text-xs text-gray-500 w-full file:mr-2 file:py-1 file:px-2 file:rounded-full file:border-0 file:text-xs file:bg-primary/10 file:text-primary hover:file:bg-primary/20 cursor-pointer"
+                />
+              )}
+            </div>
+          )}
+        </div>
+      </article>
+
+      {showRateModal && (
+        <RateCourseModal
+          isOpen={showRateModal}
+          onClose={() => setShowRateModal(false)}
+          courseId={id}
+          courseName={title}
+        />
+      )}
+    </>
+  );
 };
 
 export default CourseCard;

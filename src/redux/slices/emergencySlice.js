@@ -41,12 +41,13 @@ const emergencySlice = createSlice({
   },
 });
 
-export const { 
-  addEmergency, 
-  updateEmergency, 
-  addNotification, 
-  markNotificationRead, 
-  clearNotifications, 
-  setLoading 
+export const {
+  addEmergency,
+  updateEmergency,
+  addNotification,
+  markNotificationRead,
+  clearNotifications,
+  setLoading
 } = emergencySlice.actions;
+
 export default emergencySlice.reducer;

@@ -1,148 +1,235 @@
-import { createSlice } from '@reduxjs/toolkit';
+// src/redux/slices/coursesSlice.js
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import * as coursesApi from '../../services/coursesApi';
 
-// بيانات وهمية للكورسات
-const mockCourses = [
-    {
-        id: '1',
-        title: 'الإسعافات الأولية الأساسية',
-        description: 'تعلم أساسيات الإسعافات الأولية للحالات الطارئة: الحروق، الجروح، الاختناق، والكسور.',
-        platform: 'Udemy',
-        platformIcon: 'https://www.udemy.com/staticx/udemy/images/v7/logo-udemy.svg',
-        category: 'إسعافات',
-        level: 'مبتدئ',
-        duration: '4 ساعات',
-        price: 'مجاني',
-        rating: 4.8,
-        studentsCount: 12450,
-        url: 'https://udemy.com/course/first-aid-basics',
-        teacher: {
-            id: 'teacher1',
-            name: 'د. أحمد محمود',
-            avatar: 'https://randomuser.me/api/portraits/men/11.jpg',
-        },
-        addedBy: 'teacher1',
-        createdAt: '2025-04-01',
-        certificateRequired: false,
-        isReported: false,
-    },
-    {
-        id: '2',
-        title: 'التعامل مع الحرائق في المنزل',
-        description: 'كيفية الوقاية من الحرائق، استخدام طفايات الحريق، وإجراءات الإخلاء الآمن.',
-        platform: 'Coursera',
-        platformIcon: 'https://about.coursera.org/app/themes/coursera/assets/images/coursera-logo.svg',
-        category: 'سلامة',
-        level: 'متوسط',
-        duration: '6 ساعات',
-        price: '50$',
-        rating: 4.9,
-        studentsCount: 8750,
-        url: 'https://coursera.org/course/fire-safety',
-        teacher: {
-            id: 'teacher2',
-            name: 'مهندس خالد رشيد',
-            avatar: 'https://randomuser.me/api/portraits/men/22.jpg',
-        },
-        addedBy: 'teacher2',
-        createdAt: '2025-04-15',
-        certificateRequired: true,
-        isReported: false,
-    },
-    {
-        id: '3',
-        title: 'الإنعاش القلبي الرئوي (CPR)',
-        description: 'دورة متكاملة لتعلم الإنعاش القلبي الرئوي للبالغين والأطفال والرضع، مع شهادة معتمدة.',
-        platform: 'Edraak',
-        platformIcon: 'https://www.edraak.org/static/images/logo.png',
-        category: 'إسعافات',
-        level: 'متقدم',
-        duration: '8 ساعات',
-        price: 'مجاني',
-        rating: 4.7,
-        studentsCount: 32100,
-        url: 'https://edraak.org/course/cpr',
-        teacher: {
-            id: 'teacher1',
-            name: 'د. أحمد محمود',
-            avatar: 'https://randomuser.me/api/portraits/men/11.jpg',
-        },
-        addedBy: 'teacher1',
-        createdAt: '2025-05-01',
-        certificateRequired: true,
-        isReported: false,
-    },
-    {
-        id: '4',
-        title: 'الإسعاف النفسي الأولي',
-        description: 'كيفية تقديم الدعم النفسي للمتضررين من الصدمات والحوادث.',
-        platform: 'Coursera',
-        platformIcon: 'https://about.coursera.org/app/themes/coursera/assets/images/coursera-logo.svg',
-        category: 'نفسي',
-        level: 'مبتدئ',
-        duration: '5 ساعات',
-        price: 'مجاني',
-        rating: 4.6,
-        studentsCount: 5400,
-        url: 'https://coursera.org/course/psychological-first-aid',
-        teacher: {
-            id: 'teacher3',
-            name: 'د. سامية إبراهيم',
-            avatar: 'https://randomuser.me/api/portraits/women/33.jpg',
-        },
-        addedBy: 'teacher3',
-        createdAt: '2025-04-20',
-        certificateRequired: false,
-        isReported: false,
-    },
-];
+// ─── Thunks ──────────────────────────────────────────────────────
 
-// طلبات التقديم ليصبح معلم
-const mockTeacherRequests = [
-    {
-        id: 'req1',
-        userId: 'user456',
-        userName: 'محمد علي',
-        userAvatar: 'https://randomuser.me/api/portraits/men/44.jpg',
-        qualifications: 'مدرب معتمد في الإسعافات الأولية، خبرة 5 سنوات',
-        documents: ['doc1.pdf', 'certificate.jpg'],
-        status: 'pending', // pending, approved, rejected
-        createdAt: '2025-05-10',
-    },
-];
+export const fetchCourses = createAsyncThunk(
+  'courses/fetchCourses',
+  async ({ categoryId = null, page = 1, perPage = 10 } = {}, { rejectWithValue }) => {
+    try {
+      const response = await coursesApi.getCourses(categoryId, page, perPage);
+      return response;
+    } catch (err) {
+      return rejectWithValue(err.message);
+    }
+  }
+);
+
+export const fetchCategories = createAsyncThunk(
+  'courses/fetchCategories',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await coursesApi.getCategories();
+      return response.data || [];
+    } catch (err) {
+      return rejectWithValue(err.message);
+    }
+  }
+);
+
+export const fetchCourseDetail = createAsyncThunk(
+  'courses/fetchCourseDetail',
+  async (courseId, { rejectWithValue }) => {
+    try {
+      const response = await coursesApi.getCourse(courseId);
+      return response.data;
+    } catch (err) {
+      return rejectWithValue(err.message);
+    }
+  }
+);
+
+export const fetchCourseRatings = createAsyncThunk(
+  'courses/fetchRatings',
+  async (courseId, { rejectWithValue }) => {
+    try {
+      const response = await coursesApi.getCourseRatings(courseId);
+      return response.data || [];
+    } catch (err) {
+      return rejectWithValue(err.message);
+    }
+  }
+);
+
+export const fetchCourseRatingStats = createAsyncThunk(
+  'courses/fetchRatingStats',
+  async (courseId, { rejectWithValue }) => {
+    try {
+      const response = await coursesApi.getCourseRatingStats(courseId);
+      return response.data;
+    } catch (err) {
+      return rejectWithValue(err.message);
+    }
+  }
+);
+
+export const rateCourse = createAsyncThunk(
+  'courses/rateCourse',
+  async ({ courseId, score, review_text = '' }, { getState, rejectWithValue }) => {
+    try {
+      const token = getState().user.currentUser?.token || localStorage.getItem('token');
+      const response = await coursesApi.rateCourse(token, courseId, score, review_text);
+      return response.data;
+    } catch (err) {
+      return rejectWithValue(err.message);
+    }
+  }
+);
+
+export const updateCourseRating = createAsyncThunk(
+  'courses/updateRating',
+  async ({ courseId, ratingId, score, review_text = '' }, { getState, rejectWithValue }) => {
+    try {
+      const token = getState().user.currentUser?.token || localStorage.getItem('token');
+      const response = await coursesApi.updateCourseRating(token, courseId, ratingId, score, review_text);
+      return response.data;
+    } catch (err) {
+      return rejectWithValue(err.message);
+    }
+  }
+);
+
+export const deleteCourseRating = createAsyncThunk(
+  'courses/deleteRating',
+  async ({ courseId, ratingId }, { getState, rejectWithValue }) => {
+    try {
+      const token = getState().user.currentUser?.token || localStorage.getItem('token');
+      await coursesApi.deleteCourseRating(token, courseId, ratingId);
+      return ratingId;
+    } catch (err) {
+      return rejectWithValue(err.message);
+    }
+  }
+);
+
+// ─── Slice ──────────────────────────────────────────────────────
+
+const initialState = {
+  courses: [],
+  categories: [],
+  courseDetail: null,
+  ratings: [],
+  ratingStats: null,
+  filter: 'all',
+  category: 'all',
+  loading: false,
+  error: null,
+  submitting: false,
+  pagination: { currentPage: 1, lastPage: 1, total: 0 },
+  // بيانات وهمية للشهادات (للمحاكاة)
+  userCertificates: [],
+};
 
 const coursesSlice = createSlice({
-    name: 'courses',
-    initialState: {
-        courses: mockCourses,
-        teacherRequests: mockTeacherRequests,
-        userCertificates: [], // الشهادات التي رفعها المستخدم
-        filter: 'all', // all, category
-        category: 'all',
-        loading: false,
+  name: 'courses',
+  initialState,
+  reducers: {
+    setFilter: (state, action) => { state.filter = action.payload; },
+    setCategory: (state, action) => { state.category = action.payload; },
+    clearError: (state) => { state.error = null; },
+    clearCourseDetail: (state) => { state.courseDetail = null; },
+    
+    // ✅ إضافة actions قديمة للتوافق
+    reportCourse: (state, action) => {
+      // في الإصدار الحالي لا نستخدمه، لكن نضيفه لتفادي الأخطاء
+      console.warn('reportCourse is deprecated. Use API instead.');
     },
-    reducers: {
-        setCourses: (state, action) => { state.courses = action.payload; },
-        addCourse: (state, action) => { state.courses.unshift(action.payload); },
-        removeCourse: (state, action) => { state.courses = state.courses.filter(c => c.id !== action.payload); },
-        reportCourse: (state, action) => {
-            const course = state.courses.find(c => c.id === action.payload);
-            if (course) course.isReported = true;
-        },
-        addTeacherRequest: (state, action) => { state.teacherRequests.unshift(action.payload); },
-        updateTeacherRequestStatus: (state, action) => {
-            const { id, status } = action.payload;
-            const req = state.teacherRequests.find(r => r.id === id);
-            if (req) req.status = status;
-        },
-        addCertificate: (state, action) => { state.userCertificates.push(action.payload); },
-        setFilter: (state, action) => { state.filter = action.payload; },
-        setCategory: (state, action) => { state.category = action.payload; },
+    addCertificate: (state, action) => {
+      state.userCertificates.push(action.payload);
     },
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchCourses.pending, (state) => { state.loading = true; state.error = null; })
+      .addCase(fetchCourses.fulfilled, (state, { payload }) => {
+        state.loading = false;
+        state.courses = payload.data || [];
+        state.pagination = payload.meta || { currentPage: 1, lastPage: 1, total: 0 };
+      })
+      .addCase(fetchCourses.rejected, (state, { payload }) => {
+        state.loading = false;
+        state.error = payload;
+        state.courses = [];
+      })
+
+      .addCase(fetchCategories.pending, (state) => { state.loading = true; state.error = null; })
+      .addCase(fetchCategories.fulfilled, (state, { payload }) => {
+        state.loading = false;
+        state.categories = payload;
+      })
+      .addCase(fetchCategories.rejected, (state, { payload }) => {
+        state.loading = false;
+        state.error = payload;
+        state.categories = [];
+      })
+
+      .addCase(fetchCourseDetail.pending, (state) => { state.loading = true; state.error = null; })
+      .addCase(fetchCourseDetail.fulfilled, (state, { payload }) => {
+        state.loading = false;
+        state.courseDetail = payload;
+      })
+      .addCase(fetchCourseDetail.rejected, (state, { payload }) => {
+        state.loading = false;
+        state.error = payload;
+        state.courseDetail = null;
+      })
+
+      .addCase(fetchCourseRatings.pending, (state) => { state.loading = true; state.error = null; })
+      .addCase(fetchCourseRatings.fulfilled, (state, { payload }) => {
+        state.loading = false;
+        state.ratings = payload;
+      })
+      .addCase(fetchCourseRatings.rejected, (state, { payload }) => {
+        state.loading = false;
+        state.error = payload;
+        state.ratings = [];
+      })
+
+      .addCase(fetchCourseRatingStats.fulfilled, (state, { payload }) => {
+        state.ratingStats = payload;
+      })
+
+      .addCase(rateCourse.pending, (state) => { state.submitting = true; state.error = null; })
+      .addCase(rateCourse.fulfilled, (state, { payload }) => {
+        state.submitting = false;
+        state.ratings.unshift(payload);
+      })
+      .addCase(rateCourse.rejected, (state, { payload }) => {
+        state.submitting = false;
+        state.error = payload;
+      })
+
+      .addCase(updateCourseRating.pending, (state) => { state.submitting = true; state.error = null; })
+      .addCase(updateCourseRating.fulfilled, (state, { payload }) => {
+        state.submitting = false;
+        const idx = state.ratings.findIndex(r => r.id === payload.id);
+        if (idx !== -1) state.ratings[idx] = payload;
+      })
+      .addCase(updateCourseRating.rejected, (state, { payload }) => {
+        state.submitting = false;
+        state.error = payload;
+      })
+
+      .addCase(deleteCourseRating.pending, (state) => { state.submitting = true; })
+      .addCase(deleteCourseRating.fulfilled, (state, { payload }) => {
+        state.submitting = false;
+        state.ratings = state.ratings.filter(r => r.id !== payload);
+      })
+      .addCase(deleteCourseRating.rejected, (state, { payload }) => {
+        state.submitting = false;
+        state.error = payload;
+      });
+  },
 });
 
-export const {
-    setCourses, addCourse, removeCourse, reportCourse,
-    addTeacherRequest, updateTeacherRequestStatus, addCertificate,
-    setFilter, setCategory,
+export const { 
+  setFilter, 
+  setCategory, 
+  clearError, 
+  clearCourseDetail,
+  reportCourse,
+  addCertificate,
 } = coursesSlice.actions;
+
 export default coursesSlice.reducer;

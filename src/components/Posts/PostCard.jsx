@@ -1,197 +1,380 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useDispatch } from 'react-redux';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import {
-  FaHeart, FaRegHeart, FaThumbsDown, FaRegThumbsDown,
-  FaComment, FaEye, FaShare, FaBookmark, FaRegBookmark, FaUserCircle,
+  FaHeart, FaRegHeart,
+  FaThumbsDown, FaRegThumbsDown,
+  FaComment, FaEye, FaShare,
+  FaBookmark, FaRegBookmark,
+  FaUserCircle, FaClock, FaLink,
+  FaEdit, FaTrash, FaLock,
 } from 'react-icons/fa';
-import { toggleLike, toggleDislike } from '../../redux/slices/postsSlice';
+import { reactToPost } from '../../redux/slices/postsSlice';
 import CommentsSection from './CommentsSection';
+import { formatDate } from '../../utils/dateUtils';
 
-const PostCard = ({ post, index }) => {
+// ── Reaction button ────────────────────────────────────────────
+const ReactionButton = ({ active, count, onClick, activeIcon, inactiveIcon, activeClass, label, isMember, navigate }) => {
+  const handleClick = () => {
+    if (!isMember) {
+      navigate('/login');
+      return;
+    }
+    onClick();
+  };
+
+  return (
+    <button
+      onClick={handleClick}
+      aria-label={`${label}${count > 0 ? ` (${count})` : ''}${!isMember ? ' — سجّل دخولك' : ''}`}
+      aria-pressed={active}
+      className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm transition-all duration-150 ${
+        active
+          ? activeClass
+          : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700/60 cursor-pointer'
+      }`}
+    >
+      <span className={`text-sm ${active ? 'scale-110' : ''} transition-transform`} aria-hidden="true">
+        {active ? activeIcon : inactiveIcon}
+      </span>
+      {count > 0 && <span className="text-xs font-medium">{count}</span>}
+    </button>
+  );
+};
+
+// ── Main card ──────────────────────────────────────────────────
+const PostCard = ({
+  post,
+  index,
+  isMember  = false,
+  isTrusted = false,
+  onEdit,
+  onDelete,
+}) => {
   const { t } = useTranslation();
   const dispatch = useDispatch();
-  const [isBookmarked, setIsBookmarked] = useState(false);
-  const [showShare, setShowShare] = useState(false);
-  const [showComments, setShowComments] = useState(false);
-  const [imageLoaded, setImageLoaded] = useState(false);
-  const [copySuccess, setCopySuccess] = useState(false);
+  const navigate = useNavigate();
+
+  const {
+    id: postId,
+    title,
+    content,
+    cover_image: coverImage,
+    category,
+    created_at: createdAt,
+    views = 0,
+    comments_count:  commentsCount  = 0,
+    reactions_count: reactionsCount = 0,
+    dislikes_count:  dislikesCount  = 0,
+    user_reaction:   userReaction   = null,
+  } = post;
+
+  // ✅ دعم كلاً من user و author
+  const author = post.user || post.author || { name: 'مجهول', id: null, avatar: null, roles: [] };
+  const isOwner = post.user_id && author?.id && Number(post.user_id) === Number(author.id);
+
+  const [isBookmarked,   setIsBookmarked]   = useState(false);
+  const [showShare,      setShowShare]      = useState(false);
+  const [showComments,   setShowComments]   = useState(false);
+  const [imageLoaded,    setImageLoaded]    = useState(false);
+  const [copySuccess,    setCopySuccess]    = useState(false);
+  const [localLikes,     setLocalLikes]     = useState(reactionsCount);
+  const [localDislikes,  setLocalDislikes]  = useState(dislikesCount);
+  const [localReaction,  setLocalReaction]  = useState(userReaction);
+
   const shareRef = useRef(null);
 
-  // ✅ التحسين: إغلاق dropdown المشاركة عند الضغط خارجه
+  // Sync when store updates
+  useEffect(() => {
+    setLocalLikes(reactionsCount);
+    setLocalDislikes(dislikesCount);
+    setLocalReaction(userReaction);
+  }, [reactionsCount, dislikesCount, userReaction]);
+
+  // Close share popup on outside click
   useEffect(() => {
     if (!showShare) return;
-    const handleClickOutside = (e) => {
-      if (shareRef.current && !shareRef.current.contains(e.target)) {
-        setShowShare(false);
-      }
+    const handler = (e) => {
+      if (shareRef.current && !shareRef.current.contains(e.target)) setShowShare(false);
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
   }, [showShare]);
 
+  // ── Reaction handler (members only) ─────────────────────────
+  const handleReaction = useCallback(async (type) => {
+    if (!isMember) { navigate('/login'); return; }
+
+    const old = localReaction;
+    if (old === type) {
+      setLocalReaction(null);
+      if (type === 'like')    setLocalLikes(p => Math.max(0, p - 1));
+      if (type === 'dislike') setLocalDislikes(p => Math.max(0, p - 1));
+    } else {
+      if (old === 'like')    setLocalLikes(p => Math.max(0, p - 1));
+      if (old === 'dislike') setLocalDislikes(p => Math.max(0, p - 1));
+      if (type === 'like')    setLocalLikes(p => p + 1);
+      if (type === 'dislike') setLocalDislikes(p => p + 1);
+      setLocalReaction(type);
+    }
+
+    const result = await dispatch(reactToPost({ postId, type }));
+    if (reactToPost.rejected.match(result)) {
+      setLocalLikes(reactionsCount);
+      setLocalDislikes(dislikesCount);
+      setLocalReaction(userReaction);
+    }
+  }, [isMember, localReaction, dispatch, postId, reactionsCount, dislikesCount, userReaction, navigate]);
+
+  // ── Comment toggle ───────────────────────────────────────────
+  const handleCommentToggle = () => {
+    setShowComments(v => !v);
+  };
+
+  // ── Copy link ────────────────────────────────────────────────
   const handleCopyLink = async () => {
     try {
-      await navigator.clipboard.writeText(window.location.href);
+      await navigator.clipboard.writeText(`${window.location.origin}/posts/${postId}`);
       setCopySuccess(true);
-      setTimeout(() => {
-        setCopySuccess(false);
-        setShowShare(false);
-      }, 1500);
+      setTimeout(() => { setCopySuccess(false); setShowShare(false); }, 1500);
     } catch {
       setShowShare(false);
     }
   };
 
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMins = Math.floor((now - date) / 60000);
-    if (diffMins < 1) return 'الآن';
-    if (diffMins < 60) return `منذ ${diffMins} دقيقة`;
-    if (diffMins < 1440) return `منذ ${Math.floor(diffMins / 60)} ساعة`;
-    return date.toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' });
-  };
+  const isAuthorTrusted = author?.roles?.includes('trusted');
 
   return (
-    <div
+    <article
       data-aos="fade-up"
-      data-aos-duration="700"
-      data-aos-delay={index * 80}
-      className="group bg-white dark:bg-gray-800 rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-500 overflow-hidden border border-gray-100 dark:border-gray-700 hover:-translate-y-2"
+      data-aos-duration="600"
+      data-aos-delay={Math.min(index * 70, 300)}
+      className="group relative bg-white dark:bg-gray-800/90 rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 dark:border-gray-700/60 hover:-translate-y-1 max-w-2xl mx-auto w-full"
     >
-      {/* غلاف البطاقة */}
-      <div className="relative h-48 bg-gradient-to-r from-primary/10 to-secondary/10 overflow-hidden">
-        {post.coverImage ? (
+      {/* ── Cover image ── */}
+      {coverImage && (
+        <div className="relative h-52 sm:h-60 md:h-64 overflow-hidden bg-gray-100 dark:bg-gray-700">
           <img
-            src={post.coverImage}
-            alt={post.title}
-            className={`w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
+            src={coverImage}
+            alt={title}
+            width={800}
+            height={450}
+            loading="lazy"
+            decoding="async"
+            className="w-full h-full object-contain bg-gray-50 dark:bg-gray-800 transition-all duration-700 group-hover:scale-[1.02]"
             onLoad={() => setImageLoaded(true)}
           />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-6xl opacity-20 group-hover:opacity-30 transition">
-            📰
+          {!imageLoaded && <div className="absolute inset-0 skeleton" aria-hidden="true" />}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent pointer-events-none" />
+
+          {category && (
+            <span className="absolute top-3 right-3 bg-primary/90 backdrop-blur-sm text-white text-xs font-medium px-3 py-1 rounded-full">
+              {category}
+            </span>
+          )}
+
+          <button
+            onClick={() => setIsBookmarked(b => !b)}
+            aria-label={isBookmarked ? 'إزالة من المحفوظات' : 'حفظ المقال'}
+            aria-pressed={isBookmarked}
+            className="absolute top-3 left-3 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm p-2 rounded-full shadow hover:scale-110 transition min-w-[36px] min-h-[36px] flex items-center justify-center"
+          >
+            {isBookmarked
+              ? <FaBookmark className="text-primary text-sm" aria-hidden="true" />
+              : <FaRegBookmark className="text-gray-600 text-sm" aria-hidden="true" />
+            }
+          </button>
+        </div>
+      )}
+
+      <div className="p-5">
+        {/* ── Author ── */}
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <div className="flex items-center gap-3 min-w-0">
+            {author?.avatar ? (
+              <img
+                src={author.avatar}
+                alt={author.name}
+                width={40}
+                height={40}
+                style={{ aspectRatio: '1/1' }}
+                className="w-10 h-10 rounded-full ring-2 ring-primary/20 object-cover"
+                loading="lazy"
+              />
+            ) : (
+              <FaUserCircle className="text-4xl text-gray-300 shrink-0" aria-hidden="true" />
+            )}
+            <div>
+              <p className="font-semibold text-sm text-gray-800 dark:text-white truncate">
+                {author?.name || 'مجهول'}
+              </p>
+              <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                <FaClock className="text-[10px]" aria-hidden="true" />
+                <time dateTime={createdAt}>{formatDate(createdAt)}</time>
+                {isAuthorTrusted && (
+                  <span className="text-primary" aria-label="ناشر موثوق">· موثوق ✓</span>
+                )}
+              </div>
+            </div>
           </div>
+
+          {!coverImage && (
+            <button
+              onClick={() => setIsBookmarked(b => !b)}
+              aria-label={isBookmarked ? 'إزالة من المحفوظات' : 'حفظ المقال'}
+              aria-pressed={isBookmarked}
+              className="text-gray-400 hover:text-primary transition min-w-[36px] min-h-[36px] flex items-center justify-center"
+            >
+              {isBookmarked
+                ? <FaBookmark className="text-primary" aria-hidden="true" />
+                : <FaRegBookmark aria-hidden="true" />
+              }
+            </button>
+          )}
+        </div>
+
+        {category && !coverImage && (
+          <span className="inline-block bg-primary/10 text-primary text-xs font-medium px-2.5 py-0.5 rounded-full mb-3">
+            {category}
+          </span>
         )}
 
-        <div className="absolute top-4 left-4">
-          <span className="bg-primary/90 text-white text-xs px-3 py-1 rounded-full shadow-md">
-            {post.category}
+        <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-2 line-clamp-2 group-hover:text-primary transition-colors">
+          {title}
+        </h3>
+
+        <p className="text-gray-500 dark:text-gray-400 text-sm leading-relaxed line-clamp-3 mb-4">
+          {content}
+        </p>
+
+        <div className="flex items-center gap-4 text-xs text-gray-400 mb-4 pb-4 border-b border-gray-100 dark:border-gray-700/50">
+          <span className="flex items-center gap-1" aria-label={`${views} مشاهدة`}>
+            <FaEye aria-hidden="true" /> {views.toLocaleString('ar')}
+          </span>
+          <span className="flex items-center gap-1" aria-label={`${commentsCount} تعليق`}>
+            <FaComment aria-hidden="true" /> {commentsCount.toLocaleString('ar')} تعليق
+          </span>
+          <span className="flex items-center gap-1" aria-label={`${localLikes} إعجاب`}>
+            <FaHeart aria-hidden="true" /> {localLikes.toLocaleString('ar')} إعجاب
           </span>
         </div>
 
-        <button
-          onClick={() => setIsBookmarked(!isBookmarked)}
-          className="absolute top-4 right-4 bg-white/80 dark:bg-gray-900/80 p-2 rounded-full shadow-md hover:scale-110 transition-transform"
-          aria-label={isBookmarked ? t('posts.removeBookmark') : t('posts.bookmark')}
-        >
-          {isBookmarked ? <FaBookmark className="text-primary" /> : <FaRegBookmark />}
-        </button>
-      </div>
-
-      <div className="p-6">
-        {/* بيانات المؤلف */}
-        <div className="flex items-center gap-3 mb-4">
-          {post.author?.avatar ? (
-            <img
-              src={post.author.avatar}
-              alt={post.author.name}
-              className="w-10 h-10 rounded-full ring-2 ring-primary/30 object-cover"
+        {/* ── Action bar ── */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1">
+            <ReactionButton
+              active={localReaction === 'like'}
+              count={localLikes}
+              onClick={() => handleReaction('like')}
+              activeIcon={<FaHeart />}
+              inactiveIcon={<FaRegHeart />}
+              activeClass="text-rose-500 bg-rose-50 dark:bg-rose-900/20"
+              label="إعجاب"
+              isMember={isMember}
+              navigate={navigate}
             />
-          ) : (
-            <FaUserCircle className="text-4xl text-gray-400 flex-shrink-0" />
-          )}
-          <div>
-            <h4 className="font-semibold text-gray-800 dark:text-white">{post.author?.name}</h4>
-            <div className="flex items-center gap-2 text-xs text-gray-500">
-              <span>{formatDate(post.publishedAt)}</span>
-              <span>•</span>
-              <span className={`px-2 py-0.5 rounded-full ${post.author?.role === 'publisher' ? 'bg-primary/10 text-primary' : 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300'}`}>
-                {post.author?.role === 'publisher' ? t('posts.publisher') : t('posts.user')}
+
+            <ReactionButton
+              active={localReaction === 'dislike'}
+              count={localDislikes}
+              onClick={() => handleReaction('dislike')}
+              activeIcon={<FaThumbsDown />}
+              inactiveIcon={<FaRegThumbsDown />}
+              activeClass="text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700"
+              label="عدم إعجاب"
+              isMember={isMember}
+              navigate={navigate}
+            />
+
+            <button
+              onClick={handleCommentToggle}
+              aria-expanded={showComments}
+              aria-label={`${showComments ? 'إخفاء' : 'عرض'} التعليقات (${commentsCount})`}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm transition-all ${
+                showComments
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700/60'
+              }`}
+            >
+              <FaComment className="text-sm" aria-hidden="true" />
+              <span className="text-xs font-medium">
+                {commentsCount > 0 ? commentsCount : 'تعليق'}
               </span>
-            </div>
-          </div>
-        </div>
-
-        {/* عنوان ومحتوى المقال */}
-        <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-3 line-clamp-2 group-hover:text-primary transition-colors">
-          {post.title}
-        </h3>
-        <p className="text-gray-600 dark:text-gray-300 leading-relaxed line-clamp-3 mb-4">
-          {post.content}
-        </p>
-
-        {/* إحصائيات */}
-        <div className="flex items-center gap-4 text-sm text-gray-500 mb-4 pb-2 border-b border-gray-100 dark:border-gray-700">
-          <div className="flex items-center gap-1"><FaEye /> {post.views}</div>
-          <div className="flex items-center gap-1"><FaComment /> {post.comments?.length || 0}</div>
-        </div>
-
-        {/* أزرار التفاعل */}
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div className="flex items-center gap-4">
-            {/* إعجاب */}
-            <button
-              onClick={() => dispatch(toggleLike(post.id))}
-              className={`flex items-center gap-2 transition-all duration-300 hover:scale-110 ${post.isLikedByUser ? 'text-red-500' : 'text-gray-500 hover:text-red-500'}`}
-              aria-label={t('posts.like')}
-            >
-              {post.isLikedByUser ? <FaHeart className="text-xl" /> : <FaRegHeart className="text-xl" />}
-              <span className="text-sm font-medium">{post.likes}</span>
-            </button>
-
-            {/* عدم إعجاب */}
-            <button
-              onClick={() => dispatch(toggleDislike(post.id))}
-              className={`flex items-center gap-2 transition-all duration-300 hover:scale-110 ${post.isDislikedByUser ? 'text-gray-700 dark:text-gray-300' : 'text-gray-500 hover:text-gray-700'}`}
-              aria-label={t('posts.dislike')}
-            >
-              {post.isDislikedByUser ? <FaThumbsDown className="text-xl" /> : <FaRegThumbsDown className="text-xl" />}
-              <span className="text-sm font-medium">{post.dislikes}</span>
-            </button>
-
-            {/* تعليق */}
-            <button
-              onClick={() => setShowComments(!showComments)}
-              className="flex items-center gap-2 text-gray-500 hover:text-primary transition-colors"
-              aria-label={t('posts.comment')}
-            >
-              <FaComment className="text-xl" />
-              <span className="text-sm font-medium">{t('posts.comment')}</span>
             </button>
           </div>
 
-          {/* ✅ التحسين: مشاركة مع إغلاق خارجي وتأكيد نسخ */}
           <div className="relative" ref={shareRef}>
             <button
-              onClick={() => setShowShare(!showShare)}
-              className="text-gray-500 hover:text-primary transition-colors p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
-              aria-label={t('posts.share')}
+              onClick={() => setShowShare(v => !v)}
+              aria-label="مشاركة المقال"
+              aria-expanded={showShare}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700/60 transition"
             >
-              <FaShare className="text-lg" />
+              <FaShare className="text-sm" aria-hidden="true" />
             </button>
             {showShare && (
-              <div className="absolute bottom-full right-0 mb-2 bg-white dark:bg-gray-800 rounded-xl shadow-xl p-2 z-10 min-w-[140px] border border-gray-100 dark:border-gray-700">
+              <div className="absolute bottom-full right-0 mb-2 bg-white dark:bg-gray-800 rounded-xl shadow-xl p-1.5 min-w-[160px] border border-gray-100 dark:border-gray-700 z-10 animate-slide-in-down">
                 <button
                   onClick={handleCopyLink}
-                  className="w-full px-4 py-2 text-sm text-left whitespace-nowrap hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition"
                 >
-                  {copySuccess ? '✅ ' + t('posts.linkCopied') : t('posts.copyLink')}
+                  <FaLink className="text-xs text-primary" aria-hidden="true" />
+                  {copySuccess ? '✅ تم النسخ!' : 'نسخ الرابط'}
                 </button>
               </div>
             )}
           </div>
         </div>
+
+        {!isMember && (
+          <div className="mt-3 flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/40 rounded-xl">
+            <FaLock className="text-gray-400 text-xs shrink-0" aria-hidden="true" />
+            <p className="text-xs text-gray-500 dark:text-gray-400 flex-1">
+              <button
+                onClick={() => navigate('/login')}
+                className="text-primary font-medium hover:underline"
+              >
+                سجّل دخولك
+              </button>
+              {' '}للتفاعل مع المقالات وكتابة التعليقات
+            </p>
+          </div>
+        )}
+
+        {isOwner && isTrusted && (onEdit || onDelete) && (
+          <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
+            {onEdit && (
+              <button
+                onClick={() => onEdit(post)}
+                aria-label="تعديل المقال"
+                className="flex items-center gap-1 px-3 py-1.5 text-xs bg-blue-50 dark:bg-blue-900/30 text-blue-600 rounded-lg hover:bg-blue-100 transition"
+              >
+                <FaEdit size={11} aria-hidden="true" /> تعديل
+              </button>
+            )}
+            {onDelete && (
+              <button
+                onClick={() => onDelete(post.id)}
+                aria-label="حذف المقال"
+                className="flex items-center gap-1 px-3 py-1.5 text-xs bg-red-50 dark:bg-red-900/30 text-red-600 rounded-lg hover:bg-red-100 transition"
+              >
+                <FaTrash size={11} aria-hidden="true" /> حذف
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* قسم التعليقات */}
       {showComments && (
-        <div className="px-6 pb-6 pt-2 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-100 dark:border-gray-800">
-          <CommentsSection postId={post.id} />
+        <div className="border-t border-gray-100 dark:border-gray-700/50 bg-gray-50/50 dark:bg-gray-900/30 px-5 pb-5 pt-4">
+          <CommentsSection
+            postId={postId}
+            isMember={isMember}
+          />
         </div>
       )}
-    </div>
+    </article>
   );
 };
 

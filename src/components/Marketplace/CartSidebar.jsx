@@ -1,58 +1,125 @@
-import React, { useState } from 'react';
+import { memo, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useTranslation } from 'react-i18next';
 import { FaTrash, FaShoppingCart, FaTimes } from 'react-icons/fa';
 import { removeFromCart, clearCart } from '../../redux/slices/marketplaceSlice';
 import Button from '../Shared/Button';
 
-const CartSidebar = ({ isOpen, onClose }) => {
-    const { t } = useTranslation();
-    const dispatch = useDispatch();
-    const cart = useSelector(state => state.marketplace.userCart);
-    const total = cart.reduce((sum, item) => sum + (item.price * (item.quantity || 1)), 0);
-
-    if (!isOpen) return null;
-
-    return (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" onClick={onClose}>
-            <div className="absolute right-0 top-0 h-full w-96 bg-white dark:bg-gray-900 shadow-2xl p-6 overflow-y-auto" onClick={e => e.stopPropagation()}>
-                <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-2xl font-bold flex items-center gap-2"><FaShoppingCart /> {t('marketplace.cart')}</h2>
-                    <button onClick={onClose} className="text-gray-500 hover:text-gray-700"><FaTimes /></button>
-                </div>
-                {cart.length === 0 ? (
-                    <p className="text-gray-500 text-center py-10">{t('marketplace.emptyCart')}</p>
-                ) : (
-                    <>
-                        <div className="space-y-4 mb-6">
-                            {cart.map(item => (
-                                <div key={item.id} className="flex gap-3 border-b border-gray-100 dark:border-gray-700 pb-3">
-                                    <img src={item.image} alt={item.name} className="w-16 h-16 object-cover rounded-lg" />
-                                    <div className="flex-1">
-                                        <h4 className="font-medium">{item.name}</h4>
-                                        <div className="flex justify-between items-center mt-1">
-                                            <span className="text-primary font-bold">{item.price} {t('marketplace.currency')}</span>
-                                            <button onClick={() => dispatch(removeFromCart(item.id))} className="text-red-500"><FaTrash /></button>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                        <div className="border-t pt-4">
-                            <div className="flex justify-between font-bold text-lg mb-4">
-                                <span>{t('marketplace.total')}</span>
-                                <span>{total} {t('marketplace.currency')}</span>
-                            </div>
-                            <div className="flex gap-3">
-                                <Button text={t('marketplace.checkout')} bgColor="bg-primary" textColor="text-white" handler={() => alert(t('marketplace.orderPlaced'))} />
-                                <Button text={t('marketplace.clearCart')} bgColor="bg-red-500" textColor="text-white" handler={() => dispatch(clearCart())} />
-                            </div>
-                        </div>
-                    </>
-                )}
-            </div>
+const CartItem = memo(({ item, onRemove }) => {
+  const { t } = useTranslation();
+  return (
+    <div className="flex gap-3 border-b border-gray-100 dark:border-gray-700/50 pb-3">
+      <img
+        src={item.image}
+        alt={item.name}
+        className="w-14 h-14 object-cover rounded-lg shrink-0"
+        width="56"
+        height="56"
+        loading="lazy"
+        decoding="async"
+      />
+      <div className="flex-1 min-w-0">
+        <h4 className="font-medium text-sm text-gray-800 dark:text-white truncate">{item.name}</h4>
+        <div className="flex justify-between items-center mt-1">
+          <span className="text-primary font-bold text-sm">
+            {item.price} {t('marketplace.currency')}
+          </span>
+          <button
+            onClick={() => onRemove(item.id)}
+            className="text-red-400 hover:text-red-600 transition-colors p-1"
+            aria-label={`إزالة ${item.name} من السلة`}
+          >
+            <FaTrash className="text-xs" />
+          </button>
         </div>
-    );
-};
+      </div>
+    </div>
+  );
+});
+CartItem.displayName = 'CartItem';
 
+const CartSidebar = memo(({ isOpen, onClose }) => {
+  const { t } = useTranslation();
+  const dispatch = useDispatch();
+  const cart = useSelector(state => state.marketplace.userCart);
+  const total = cart.reduce((sum, item) => sum + item.price * (item.quantity || 1), 0);
+
+  const handleRemove = useCallback((id) => dispatch(removeFromCart(id)), [dispatch]);
+  const handleClear = useCallback(() => dispatch(clearCart()), [dispatch]);
+  const handleCheckout = useCallback(() => alert(t('marketplace.orderPlaced')), [t]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label={t('marketplace.cart')}
+    >
+      <div
+        className="absolute end-0 top-0 h-full w-full max-w-sm bg-white dark:bg-gray-900 shadow-2xl flex flex-col"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex justify-between items-center px-6 py-5 border-b border-gray-100 dark:border-gray-800">
+          <h2 className="text-xl font-bold flex items-center gap-2 text-gray-800 dark:text-white">
+            <FaShoppingCart className="text-primary" />
+            {t('marketplace.cart')}
+          </h2>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors p-1"
+            aria-label={t('common.close') || 'إغلاق'}
+          >
+            <FaTimes />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-6 py-4">
+          {cart.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-center gap-3">
+              <div className="text-5xl opacity-30">🛒</div>
+              <p className="text-gray-400 text-sm">{t('marketplace.emptyCart')}</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {cart.map(item => (
+                <CartItem key={item.id} item={item} onRemove={handleRemove} />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        {cart.length > 0 && (
+          <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-800">
+            <div className="flex justify-between font-bold text-base mb-4 text-gray-800 dark:text-white">
+              <span>{t('marketplace.total')}</span>
+              <span className="text-primary">{total.toFixed(2)} {t('marketplace.currency')}</span>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                text={t('marketplace.checkout')}
+                bgColor="bg-primary hover:bg-primary/90"
+                textColor="text-white"
+                handler={handleCheckout}
+              />
+              <Button
+                text={t('marketplace.clearCart')}
+                bgColor="bg-red-500 hover:bg-red-600"
+                textColor="text-white"
+                handler={handleClear}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+});
+
+CartSidebar.displayName = 'CartSidebar';
 export default CartSidebar;

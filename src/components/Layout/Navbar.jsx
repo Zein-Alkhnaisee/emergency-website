@@ -1,3 +1,4 @@
+// src/components/Layout/Navbar.jsx
 import { useState, useEffect, useCallback, useRef, memo } from 'react';
 import { createPortal } from 'react-dom';
 import { Link as ScrollLink } from 'react-scroll';
@@ -5,13 +6,14 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useLocation, Link as RouterLink } from 'react-router-dom';
 import { useMediaQuery } from 'react-responsive';
-import { FaBars, FaShoppingCart, FaTimes, FaSignOutAlt, FaUserCircle, FaBell } from 'react-icons/fa';
+import { FaBars, FaShoppingCart, FaTimes, FaSignOutAlt, FaUserCircle } from 'react-icons/fa';
 import { IoMdSearch } from 'react-icons/io';
 import DarkMode from './DarkMode';
 import LanguageSwitcher from './LanguageSwitcher';
 import { openCart } from '../../redux/slices/marketplaceSlice';
 import { logoutUser } from '../../redux/slices/userSlice';
 import { useLanguage } from '../../contexts/LanguageContext';
+import BellDropdown from '../Shared/BellDropdown'; // ✅ استيراد المكون الجديد
 
 const NAV_SECTIONS = ['home', 'emergency', 'posts', 'courses', 'services', 'marketplace'];
 const AUTH_PATHS = ['/login', '/register', '/forgot-password', '/verify-code', '/verify-otp', '/reset-password'];
@@ -53,10 +55,11 @@ const Navbar = memo(() => {
   const userCart = useSelector(s => s.marketplace?.userCart) || [];
   const isAuthenticated = useSelector(s => s.user?.isAuthenticated) || false;
   const roles = useSelector(s => s.user?.roles) || [];
-  const { list: notifications = [] } = useSelector(s => s.emergencyNotifications || { list: [] });
+
+  // ✅ استخدام unreadCount من rescueRequests بدلاً من emergencyNotifications
+  const unreadCount = useSelector(s => s.rescueRequests?.unreadCount || 0);
 
   const cartCount = userCart.length;
-  const unreadCount = notifications.filter(n => !n.is_responded).length;
   const isRTL = currentLang === 'ar';
   const isMobile = useMediaQuery({ query: '(max-width: 1023px)' });
   const isAuthPage = AUTH_PATHS.includes(location.pathname);
@@ -105,8 +108,8 @@ const Navbar = memo(() => {
   const NavLink = ({ section, onClick, children }) => {
     const isActive = isHomePage && !isAuthPage && activeSection === section;
     const cls = `px-3 py-1.5 rounded-lg text-sm font-medium cursor-pointer transition-all duration-200 ${isActive
-        ? 'text-primary bg-primary/10'
-        : 'text-gray-700 dark:text-gray-300 hover:text-primary hover:bg-primary/5'
+      ? 'text-primary bg-primary/10'
+      : 'text-gray-700 dark:text-gray-300 hover:text-primary hover:bg-primary/5'
       }`;
 
     if (!isHomePage || isAuthPage) {
@@ -154,16 +157,8 @@ const Navbar = memo(() => {
 
           {/* Right controls */}
           <div className="flex items-center gap-0.5">
-            {/* Notifications */}
-            {isAuthenticated && (
-              <IconButton
-                onClick={() => navigate('/notifications')}
-                ariaLabel={unreadCount > 0 ? `الإشعارات — ${unreadCount} غير مقروءة` : 'الإشعارات'}
-                badge={unreadCount}
-              >
-                <FaBell className="text-xl" />
-              </IconButton>
-            )}
+            {/* ✅ زر الجرس مع القائمة المنسدلة */}
+            {isAuthenticated && <BellDropdown />}
 
             {/* Search */}
             {/* <div className="relative hidden md:block">
@@ -313,8 +308,8 @@ const Navbar = memo(() => {
                     role="menuitem"
                     onClick={closeMobileMenu}
                     className={`py-3 px-3 rounded-xl text-base font-medium cursor-pointer transition-all ${isActive
-                        ? 'text-primary bg-primary/10'
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                      ? 'text-primary bg-primary/10'
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
                       }`}
                     href={`#${section}`}
                   >
@@ -339,6 +334,10 @@ const Navbar = memo(() => {
                 >
                   {t('nav.roleRequests', 'طلبات الأدوار')}
                 </button>
+                {/* ✅ إضافة BellDropdown في القائمة الجانبية للموبايل */}
+                <div className="px-3 py-2">
+                  <BellDropdown />
+                </div>
               </div>
             )}
 

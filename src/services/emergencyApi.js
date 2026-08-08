@@ -25,6 +25,23 @@ const emergencyRequest = async (endpoint, method = 'GET', body = null, token = n
   return data;
 };
 
+/**
+ * جلب إحصاءات مستخدم معين (المجموع، المتوسط، التوزيع)
+ */
+export const getUserStats = async (token, userId, groupId) => {
+  const response = await fetch(`${API_URL}/ratings/stats/${userId}?group_id=${groupId}`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Accept': 'application/json',
+    },
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || 'فشل جلب إحصاءات المستخدم');
+  }
+  return data; // يجب أن يعيد { data: { total, average, ... } }
+};
 
 // ─── Role Requests ──────────────────────────
 export const submitRoleRequest = (token, formData) => {
@@ -62,8 +79,19 @@ export const retryMyCase = (token) =>
   emergencyRequest('/emergency/my-case/retry', 'POST', null, token);
 
 // ─── Emergency Notifications ────────────────
-export const getMyNotifications = (token, perPage = 15) =>
-  emergencyRequest(`/emergency/notifications?per_page=${perPage}`, 'GET', null, token);
+// في emergencyApi.js
+export const getMyNotifications = (token, perPage = 15) => {
+  console.log(`🔍 getMyNotifications called with perPage=${perPage}`);
+  return emergencyRequest(`/emergency/notifications?per_page=${perPage}`, 'GET', null, token)
+    .then((data) => {
+      console.log('📦 getMyNotifications response:', data);
+      return data;
+    })
+    .catch((err) => {
+      console.error('❌ getMyNotifications error:', err);
+      throw err;
+    });
+};
 
 export const respondToNotification = (token, notifId, response) =>
   emergencyRequest(`/emergency/notifications/${notifId}/respond`, 'POST', { response }, token);
@@ -146,3 +174,31 @@ export const getUserNotifications = (token, perPage = 50) =>
 
 export const markAllNotificationsRead = (token) =>
   emergencyRequest('/user-notifications/mark-all-read', 'POST', null, token);
+
+// ─── Rescue Requests (New API) ───────────────────────────────
+export const getRescueRequests = (token, params = {}) => {
+  const { perPage = 15, pending = false, active = false } = params;
+  let query = `?per_page=${perPage}`;
+  if (pending) query += '&pending=1';
+  if (active) query += '&active=1';
+  return emergencyRequest(`/emergency/rescue-requests${query}`, 'GET', null, token);
+};
+
+export const getRescueRequestDetail = (token, emergencyId) =>
+  emergencyRequest(`/emergency/rescue-requests/${emergencyId}`, 'GET', null, token);
+
+export const acceptRescueRequest = (token, emergencyId) =>
+  emergencyRequest(`/emergency/rescue-requests/${emergencyId}/accept`, 'POST', null, token);
+
+export const rejectRescueRequest = (token, emergencyId) =>
+  emergencyRequest(`/emergency/rescue-requests/${emergencyId}/reject`, 'POST', null, token);
+
+// ─── User Notifications (New) ──────────────────────────────────
+export const getUserNotificationsList = (token, perPage = 20) =>
+  emergencyRequest(`/user-notifications?per_page=${perPage}`, 'GET', null, token);
+
+export const getUnreadNotificationsCount = (token) =>
+  emergencyRequest('/user-notifications/unread-count', 'GET', null, token);
+
+export const markNotificationRead = (token, notificationId) =>
+  emergencyRequest(`/user-notifications/${notificationId}/read`, 'PATCH', null, token);

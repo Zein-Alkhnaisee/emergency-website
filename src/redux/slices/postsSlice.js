@@ -2,7 +2,7 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { postsApi } from '../../services/postsApi';
 
 // ─────────────────────────────────────────
-// THUNKS
+// THUNKS (نفس الكود القديم، لم يتغير)
 // ─────────────────────────────────────────
 
 export const fetchPosts = createAsyncThunk(
@@ -12,7 +12,6 @@ export const fetchPosts = createAsyncThunk(
       const response = await postsApi.getArticles(page, perPage, search);
       return { posts: response.data, pagination: response.meta };
     } catch (err) {
-      // ✅ تحويل الأخطاء الناتجة عن استجابة غير JSON إلى رسالة مفهومة
       if (err.message && (err.message.includes('Unexpected token') || err.message.includes('HTML'))) {
         return rejectWithValue('الخادم غير متاح حالياً. يرجى المحاولة لاحقاً.');
       }
@@ -57,10 +56,6 @@ export const fetchArticleReactions = createAsyncThunk(
   }
 );
 
-/**
- * ✅ FIX: هاد الثاندك بيجلب تفاعلاتي ويلصقها على المقالات الحالية
- * يُستدعى من PostsPage بعد كل fetchPosts
- */
 export const fetchMyReactionsAndMerge = createAsyncThunk(
   'posts/fetchMyReactionsAndMerge',
   async (_, { getState, rejectWithValue }) => {
@@ -70,11 +65,11 @@ export const fetchMyReactionsAndMerge = createAsyncThunk(
       const response = await postsApi.getMyReactions(token, 100);
       return { reactions: response.data || [] };
     } catch (err) {
-      // لا نرمي خطأ هنا — التفاعلات اختيارية
       return { reactions: [] };
     }
   }
 );
+
 export const fetchMyCommentReactionsAndMerge = createAsyncThunk(
   'posts/fetchMyCommentReactionsAndMerge',
   async (_, { getState, rejectWithValue }) => {
@@ -266,6 +261,7 @@ export const fetchMyReactions = createAsyncThunk(
     }
   }
 );
+
 export const reactToComment = createAsyncThunk(
   'posts/reactToComment',
   async ({ commentId, type }, { getState, rejectWithValue }) => {
@@ -291,6 +287,9 @@ const initialState = {
   category: 'all',
   pagination: { currentPage: 1, lastPage: 1, total: 0 },
   submitting: false,
+
+  // ✅ إضافة currentArticle لتخزين المقالة المعروضة في PostDetailPage
+  currentArticle: null,
 
   commentsByArticle: {},
   reactionsByArticle: {},
@@ -319,7 +318,6 @@ const postsSlice = createSlice({
       })
       .addCase(fetchPosts.fulfilled, (state, { payload }) => {
         state.loading = false;
-        // ✅ ضمان وجود user في كل مقال
         state.posts = payload.posts.map(post => ({
           ...post,
           user: post.user || post.author || { name: 'مجهول', id: null, avatar: null, roles: [] }
@@ -336,18 +334,15 @@ const postsSlice = createSlice({
       })
 
       // ── fetchMyReactionsAndMerge ────────────────────
-      // ✅ FIX: يدمج user_reaction على posts بعد كل تحميل
       .addCase(fetchMyReactionsAndMerge.fulfilled, (state, { payload }) => {
         const { reactions } = payload;
         if (!reactions?.length) return;
-        // نبني map: articleId -> reaction type
         const map = {};
         reactions.forEach(r => {
           if (r.reactionable_type === 'Article') {
             map[r.reactionable_id] = r.type;
           }
         });
-        // نلصق user_reaction — حتى لو null نحدّث لنمسح القديم
         state.posts = state.posts.map(post => ({
           ...post,
           user_reaction: map[post.id] ?? null,
@@ -539,8 +534,12 @@ const postsSlice = createSlice({
           }
         }
       })
+
       // ── fetchMyComments ────────────────────────────
-      .addCase(fetchMyComments.pending, (state) => { state.myComments.loading = true; state.myComments.error = null; })
+      .addCase(fetchMyComments.pending, (state) => {
+        state.myComments.loading = true;
+        state.myComments.error = null;
+      })
       .addCase(fetchMyComments.fulfilled, (state, { payload }) => {
         state.myComments = { data: payload.comments, meta: payload.meta, loading: false, error: null };
       })
@@ -549,10 +548,30 @@ const postsSlice = createSlice({
         state.myComments.error = payload;
       })
 
-      // ── fetchMyReactions ───────────────────────────
-      .addCase(fetchMyReactions.pending, (state) => { state.myReactions.loading = true; state.myReactions.error = null; })
+      // ── fetchArticleDetail ──────────────────────────
+      .addCase(fetchArticleDetail.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchArticleDetail.fulfilled, (state, { payload }) => {
+        state.loading = false;
+        state.currentArticle = payload;
+      })
+      .addCase(fetchArticleDetail.rejected, (state, { payload }) => {
+        state.loading = false;
+        state.error = payload;
+        state.currentArticle = null;
+      })
+
+      // ── fetchMyReactions ────────────────────────────
+      .addCase(fetchMyReactions.pending, (state) => {
+        state.myReactions.loading = true;
+        state.myReactions.error = null;
+      })
       .addCase(fetchMyReactions.fulfilled, (state, { payload }) => {
-        state.myReactions = { data: payload.reactions, meta: payload.meta, loading: false, error: null };
+        state.myReactions.loading = false;
+        state.myReactions.data = payload.reactions;
+        state.myReactions.meta = payload.meta;
       })
       .addCase(fetchMyReactions.rejected, (state, { payload }) => {
         state.myReactions.loading = false;

@@ -24,7 +24,7 @@ const Hero = memo(() => {
           {/* الصورة */}
           <div className="w-full md:w-1/2 h-full min-h-[300px] md:min-h-full overflow-hidden flex items-center justify-center">
             <img
-              src="/emergency.png"
+              src={`${import.meta.env.BASE_URL}emergency.png`}
               alt={t('hero.title')}
               width={400}
               height={400}

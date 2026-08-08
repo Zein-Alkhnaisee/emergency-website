@@ -1,4 +1,4 @@
-import React, { useState, useEffect, lazy, Suspense, useCallback } from 'react';
+import React, { useState, useEffect, lazy, Suspense, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
@@ -16,14 +16,13 @@ import { useGeoGroup } from '../hooks/useGeoGroup';
 import Button from '../components/Shared/Button';
 import Heading from '../components/Shared/Heading';
 import { showSuccess, showError, confirmToast } from '../utils/toastHelpers';
-
+import { fetchRescueRequests } from '../redux/slices/rescueRequestsSlice';
 
 const LazyMap = lazy(() => import('../components/Emergency/MapWithGroups'));
 
 // ── Group selector modal ───────────────────────────────────────
 const SelectGroupModal = ({ isOpen, onClose, groups, onSelect, title }) => {
   const { t } = useTranslation();
-
   if (!isOpen) return null;
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={onClose}>
@@ -95,7 +94,7 @@ const SOSModal = ({ isOpen, onClose, onSend, loading, t }) => {
               className={`py-2 rounded-xl border text-xs font-medium transition-all ${severity === s.value
                 ? `${s.color} ring-2 ring-offset-1 ring-current`
                 : 'bg-gray-50 dark:bg-gray-700 text-gray-500 border-gray-200 dark:border-gray-600 hover:bg-gray-100'
-                }`}
+              }`}
             >
               {s.label}
             </button>
@@ -284,7 +283,7 @@ const EmergencyPage = () => {
       if (confirmOfficialJoin.fulfilled.match(r)) {
         showSuccess(t('emergency.joinedSuccess'));
         dispatch(clearSearchResult());
-        dispatch(fetchMyGroup()); // تحديث currentGroup
+        dispatch(fetchMyGroup());
       } else {
         showError(r.payload);
       }
@@ -298,7 +297,7 @@ const EmergencyPage = () => {
       if (confirmPendingJoin.fulfilled.match(r)) {
         showSuccess(t('emergency.joinedSuccess'));
         dispatch(clearSearchResult());
-        dispatch(fetchMyGroup()); // تحديث currentGroup
+        dispatch(fetchMyGroup());
       } else {
         showError(r.payload);
       }
@@ -337,10 +336,30 @@ const EmergencyPage = () => {
       showSuccess(t('emergency.sent'));
       setSosOpen(false);
       navigate('/my-case');
+      dispatch(fetchRescueRequests({ perPage: 50, pending: true, active: true }));
     } else {
       showError(r.payload || t('emergency.sosFailed'));
     }
   };
+
+  // ── حساب قائمة الغروبات المعروضة على الخريطة ──
+  const mapGroups = useMemo(() => {
+    const groups = [...officialGroupsList];
+    // إذا كان المستخدم في غروب حالي، أضفه إلى القائمة (بلون أزرق)
+    if (currentGroup) {
+      // extract center coordinates from currentGroup.center array
+      const centerLat = currentGroup.center?.[0] ?? 0;
+      const centerLng = currentGroup.center?.[1] ?? 0;
+      groups.push({
+        id: currentGroup.group_id || `group-${Date.now()}`,
+        name: currentGroup.group_name || 'غروبي',
+        center_lat: centerLat,
+        center_lng: centerLng,
+        radius_km: currentGroup.radius_km || 5,
+      });
+    }
+    return groups;
+  }, [officialGroupsList, currentGroup]);
 
   // ── عرض حالة الغروب ──
   const renderGroupStatus = () => {
@@ -362,14 +381,13 @@ const EmergencyPage = () => {
       );
     }
 
-    // ✅ عرض الغروب الحالي (رسمي أو معلق)
     if (currentGroup) {
       const isOfficial = currentGroup.type === 'official';
       const isPending = currentGroup.type === 'pending';
 
       return (
-        <div className={`p-4 rounded-2xl border ${isOfficial 
-          ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' 
+        <div className={`p-4 rounded-2xl border ${isOfficial
+          ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
           : 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800'}`}
         >
           <p className={`font-semibold ${isOfficial ? 'text-green-700 dark:text-green-400' : 'text-yellow-700 dark:text-yellow-400'} mb-1`}>
@@ -390,7 +408,6 @@ const EmergencyPage = () => {
       );
     }
 
-    // ── نتائج البحث ──
     if (searchResult) {
       const { scenario } = searchResult;
       if (scenario === 'official_available') {
@@ -433,7 +450,6 @@ const EmergencyPage = () => {
       }
     }
 
-    // ── لا يوجد غروب ولا بحث ──
     return (
       <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-4 rounded-2xl">
         <p className="text-gray-500 dark:text-gray-400 text-sm mb-3">{t('emergency.noGroupYet')}</p>
@@ -563,7 +579,7 @@ const EmergencyPage = () => {
               userLocation={gpsLocation}
               selectedLocation={selectedLocation}
               onLocationSelect={setSelectedLocation}
-              groups={officialGroupsList}
+              groups={mapGroups}                // ✅ استخدم القائمة المحسوبة
               waitingList={pendingGroupsList}
             />
           </Suspense>
@@ -594,6 +610,13 @@ const EmergencyPage = () => {
               bgColor="bg-purple-600 hover:bg-purple-700"
               textColor="text-white"
               handler={() => navigate('/my-case')}
+              icon={<FaClipboardList className="text-sm" />}
+            />
+            <Button
+              text={t('emergency.viewRescueRequests')}
+              bgColor="bg-blue-600 hover:bg-blue-700"
+              textColor="text-white"
+              handler={() => navigate('/emergency/rescue-requests')}
               icon={<FaClipboardList className="text-sm" />}
             />
           </>

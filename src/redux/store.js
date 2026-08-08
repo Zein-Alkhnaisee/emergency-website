@@ -16,6 +16,8 @@ import emergencyChatReducer from './slices/emergencyChatSlice';
 import trustReducer from './slices/trustSlice';
 import ratingsReducer from './slices/ratingsSlice';
 import notificationsReducer from './slices/notificationsSlice';
+import rescueRequestsReducer from './slices/rescueRequestsSlice';
+
 
 export const store = configureStore({
   reducer: {
@@ -36,5 +38,6 @@ export const store = configureStore({
     trust: trustReducer,
     ratings: ratingsReducer,
     notifications: notificationsReducer,
+    rescueRequests: rescueRequestsReducer,
   },
 });

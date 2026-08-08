@@ -24,6 +24,7 @@ import Heading from '../components/Shared/Heading';
 import { FaPaperPlane, FaHome, FaUsers, FaChevronDown, FaUserCircle, FaPaperclip, FaSpinner, FaStar } from 'react-icons/fa';
 import RateUserModal from '../components/Ratings/RateUserModal';
 
+
 const CONTEXT = 'home';
 const TYPING_THROTTLE_MS = 800;
 const PRESENCE_INTERVAL_MS = 30_000;

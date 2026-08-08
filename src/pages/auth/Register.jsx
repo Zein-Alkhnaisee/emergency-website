@@ -1,97 +1,3 @@
-// import React, { useState, useEffect } from 'react';
-// import { useDispatch, useSelector } from 'react-redux';
-// import { useNavigate, Link } from 'react-router-dom';
-// import { useTranslation } from 'react-i18next';
-// import { registerUser, clearError } from '../../redux/slices/userSlice';
-// import Toast from '../../components/Toast';
-
-// const Register = () => {
-//   const { t } = useTranslation();
-//   const dispatch = useDispatch();
-//   const navigate = useNavigate();
-//   const { loading, error, temp_token } = useSelector((state) => state.user);
-//   const [name, setName] = useState('');
-//   const [email, setEmail] = useState('');
-//   const [password, setPassword] = useState('');
-//   const [passwordConfirmation, setPasswordConfirmation] = useState('');
-//   const [toast, setToast] = useState(null);
-//   const [toastKey, setToastKey] = useState(0);
-
-//   useEffect(() => {
-//     if (temp_token) navigate('/verify-code');
-//   }, [temp_token, navigate]);
-
-//   useEffect(() => {
-//     if (error) {
-//       setToast({ message: error, type: 'error' });
-//       setToastKey(prev => prev + 1);
-//       const timer = setTimeout(() => dispatch(clearError()), 3000);
-//       return () => clearTimeout(timer);
-//     }
-//   }, [error, dispatch]);
-
-//   const handleSubmit = async (e) => {
-//     e.preventDefault();
-//     if (!name || !email || !password || !passwordConfirmation) {
-//       setToast({ message: t('fillAllFields'), type: 'error' });
-//       setToastKey(prev => prev + 1);
-//       return;
-//     }
-//     if (password !== passwordConfirmation) {
-//       setToast({ message: t('passwordMismatch'), type: 'error' });
-//       setToastKey(prev => prev + 1);
-//       return;
-//     }
-//     await dispatch(registerUser({ name, email, password, password_confirmation: passwordConfirmation }));
-//   };
-
-//   return (
-//     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 p-4 animate-fadeIn">
-//       <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-2xl shadow-2xl overflow-hidden transform transition-all duration-300 hover:shadow-xl animate-slideUp">
-//         <div className="bg-gradient-to-r from-red-600 to-red-700 p-6 text-white text-center">
-//           <h2 className="text-2xl font-bold">{t('register')}</h2>
-//         </div>
-//         <form onSubmit={handleSubmit} className="p-6 space-y-5">
-//           <div>
-//             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{t('name')}</label>
-//             <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="mt-1 w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 transition outline-none" required disabled={loading} />
-//           </div>
-//           <div>
-//             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{t('email')}</label>
-//             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1 w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 transition outline-none" required disabled={loading} />
-//           </div>
-//           <div>
-//             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{t('password')}</label>
-//             <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="mt-1 w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 transition outline-none" required disabled={loading} />
-//           </div>
-//           <div>
-//             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{t('confirmPassword')}</label>
-//             <input type="password" value={passwordConfirmation} onChange={(e) => setPasswordConfirmation(e.target.value)} className="mt-1 w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 transition outline-none" required disabled={loading} />
-//           </div>
-//           <div className="flex items-center justify-between">
-//             <Link to="/login" className="text-sm text-red-600 hover:underline transition">{t('already Have Account')}</Link>
-//           </div>
-//           <button
-//             type="submit"
-//             disabled={loading}
-//             className="w-full py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 bg-red-600 text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed btn-ripple"
-//           >
-//             {loading ? (
-//               <span className="flex items-center justify-center gap-2">
-//                 <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-//                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-//                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-//                 </svg>
-//                 {t('common.loading')}
-//               </span>
-//             ) : t('register')}
-//           </button>
-//         </form>
-//       </div>
-//       {toast && <Toast key={toastKey} message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
-//     </div>
-//   );
-// };
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, Link } from 'react-router-dom';
@@ -174,7 +80,7 @@ const Register = () => {
   };
 
   return (
-    <div className="text-white h-screen flex items-center justify-center bg-cover" style={{ backgroundImage: "url(/emergency-login.png)", backgroundAttachment: "fixed" }} dir={isRTL ? 'rtl' : 'ltr'}>
+    <div className="text-white h-screen flex items-center justify-center bg-cover" style={{ backgroundImage: `url(${import.meta.env.BASE_URL}emergency-login.png)`, backgroundAttachment: "fixed" }} dir={isRTL ? 'rtl' : 'ltr'}>
       <div className="bg-slate-800 border border-slate-600 rounded-md p-10 shadow-lg backdrop-blur-lg bg-opacity-30 relative w-[500px]">
         <h1 className="text-4xl font-bold text-center mb-8">{t('register')}</h1>
         <form onSubmit={handleSubmit}>

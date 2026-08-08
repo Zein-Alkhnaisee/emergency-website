@@ -1,3 +1,4 @@
+// src/services/echo.js
 import Echo from 'laravel-echo';
 import Pusher from 'pusher-js';
 
@@ -30,7 +31,6 @@ export const initEcho = (token) => {
     enabledTransports: ['ws', 'wss'],
     disableStats: true,
     cluster: '',
-    // ✅ التغيير الأساسي: أضفنا /api/ قبل broadcasting/auth
     authEndpoint: `${SERVER_ROOT}/api/broadcasting/auth`,
     auth: {
       headers: {
@@ -79,40 +79,27 @@ export const initEcho = (token) => {
 export const disconnectEcho = () => {
   try {
     echoInstance?.disconnect();
-  } catch { }
+  } catch {}
   echoInstance = null;
   currentToken = null;
 };
 
-// ─────────────────────────────────────────────────────────────
-// قناة إشعارات المستخدم الخاصة — تُستخدم لعرض توست فوري عند:
-//  - وصول إشعار حالة طوارئ جديدة (تحتاج استجابة)
-//  - وصول إشعار تقييم جديد (شخص قيّمك)
-// اشتراك "Best effort": إذا لم يكن الباك-إند يبث على هذه القناة
-// بعد، سيفشل بصمت ولن يكسر التطبيق — نظام الـ polling الاحتياطي
-// في LiveNotificationCenter يبقى يعمل بكلتا الحالتين.
-// ─────────────────────────────────────────────────────────────
+// ── القناة القديمة (للإشعارات العامة) ───────────────────────────
 export const subscribeToUserNotifications = (userId, handlers = {}) => {
   const echo = getEcho();
-  if (!echo || !userId) return () => { };
+  if (!echo || !userId) return () => {};
 
-  // القناة الافتراضية التي يبثّ عليها Laravel لإشعارات الـ Notifiable
   const channelName = `App.Models.User.${userId}`;
-
   let channel;
   try {
     channel = echo.private(channelName);
-
     channel.error((error) => {
-      // صامت عمداً — القناة اختيارية، والـ polling يغطي الحالة
       console.warn('ℹ️ user-notifications channel unavailable, polling will be used instead', error);
     });
 
-    // نظام إشعارات Laravel الجاهز (Notification::send + broadcast channel)
     if (handlers.onNotification) {
       channel.notification((notification) => handlers.onNotification(notification));
     }
-    // في src/services/echo.js (جزء من subscribeToUserNotifications)
     if (handlers.onServiceNotification) {
       channel.listen('.notification.created', (payload) => {
         if (payload.notification?.type?.startsWith('service_')) {
@@ -121,28 +108,52 @@ export const subscribeToUserNotifications = (userId, handlers = {}) => {
         if (handlers.onCustom) handlers.onCustom(payload);
       });
     }
-
-    // في حال كان الباك-إند يبث حدثاً مخصصاً بدل نظام Notifications الجاهز
     if (handlers.onCustom) channel.listen('.notification.created', handlers.onCustom);
   } catch (err) {
     console.warn('ℹ️ could not subscribe to user notifications channel', err);
-    return () => { };
+    return () => {};
   }
 
   return () => {
-    try { echo.leave(`private-${channelName}`); } catch { }
+    try { echo.leave(`private-${channelName}`); } catch {}
   };
 };
 
+
+export const subscribeToUserNotificationsV2 = (userId, handlers = {}) => {
+  const echo = getEcho();
+  if (!echo || !userId) return () => {};
+
+  const channelName = `user-notifications.${userId}`;
+  const channel = echo.private(channelName);
+
+  channel.subscribed(() => {
+    console.log('✅ Subscribed to user-notifications channel v2');
+  });
+
+  channel.error((error) => {
+    console.warn('⚠️ user-notifications channel error:', error);
+  });
+
+  if (handlers.onNotificationCreated) {
+    channel.listen('.notification.created', handlers.onNotificationCreated);
+  }
+
+  return () => {
+    try { echo.leave(`private-${channelName}`); } catch {}
+  };
+};
+
+// ── قناة دردشة المجموعة ──────────────────────────────────────────
 export const subscribeToGroupChat = (groupId, handlers = {}) => {
   const echo = getEcho();
-  if (!echo || !groupId) return () => { };
+  if (!echo || !groupId) return () => {};
 
   const channelName = `emergency-group.${groupId}`;
   const channel = echo.private(channelName);
 
   channel.subscribed(() => {
-    console.log('✅ Successfully subscribed to channel');
+    console.log('✅ Successfully subscribed to group chat channel');
   });
   channel.error((error) => {
     console.error('❌ Channel subscription error:', error);

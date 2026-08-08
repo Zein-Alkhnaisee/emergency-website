@@ -7,7 +7,7 @@ export const fetchMyNotifications = createAsyncThunk(
     try {
       const token = getState().user.currentUser?.token || localStorage.getItem('token');
       const response = await emergencyApi.getMyNotifications(token, perPage);
-      return response; // { data: [], meta }
+      return response;
     } catch (err) {
       return rejectWithValue(err.message);
     }
@@ -28,7 +28,7 @@ export const respondToNotification = createAsyncThunk(
 );
 
 const initialState = {
-  list: [],          // ✅ تأكد من أن list مصفوفة
+  list: [],
   meta: { current_page: 1, last_page: 1, total: 0 },
   loading: false,
   error: null,
@@ -45,16 +45,19 @@ const emergencyNotificationsSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      .addCase(fetchMyNotifications.pending, (state) => { state.loading = true; state.error = null; })
+      .addCase(fetchMyNotifications.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
       .addCase(fetchMyNotifications.fulfilled, (state, { payload }) => {
         state.loading = false;
-        state.list = payload.data || [];   // ✅ تأكد من تعيين مصفوفة
+        state.list = payload.data || [];
         state.meta = payload.meta || { current_page: 1, last_page: 1, total: 0 };
       })
       .addCase(fetchMyNotifications.rejected, (state, { payload }) => {
         state.loading = false;
         state.error = payload;
-        state.list = [];   // ✅ في حالة الخطأ، تأكد من أن list مصفوفة
+        state.list = [];
       })
       .addCase(respondToNotification.fulfilled, (state, { payload }) => {
         const idx = state.list.findIndex(n => n.id === payload.notifId);
@@ -62,7 +65,6 @@ const emergencyNotificationsSlice = createSlice({
           state.list[idx].is_responded = true;
           state.list[idx].response = payload.response;
         }
-
       });
   },
 });

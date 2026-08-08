@@ -26,6 +26,25 @@
     <meta property="og:description" content="مساعدة فورية من متطوعين قريبين. أبلغ عن حالات الطوارئ وأنقذ الأرواح." />
     <meta property="og:type"        content="website" />
     <meta property="og:image"       content="/emergency.png" />
+
+    <!-- ✅ سكريبت إعادة التوجيه لحل مشكلة زر الرجوع والروابط -->
+    <script>
+      (function() {
+        var base = '/emergency-website/';
+        var path = window.location.pathname;
+        // إذا كان المسار لا يبدأ بـ base ولا هو '/' أو '/index.html' ولا هو ملف (يحتوي على نقطة)
+        if (
+          !path.startsWith(base) &&
+          path !== '/' &&
+          path !== '' &&
+          !path.match(/\.[a-zA-Z0-9]+$/)
+        ) {
+          // إذا كان المسار '/register' مثلاً، نحوله إلى '/emergency-website/register'
+          var newPath = base + path.replace(/^\//, '');
+          window.location.replace(newPath);
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

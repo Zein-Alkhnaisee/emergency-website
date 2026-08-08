@@ -15,6 +15,10 @@ import EmergencyChatPage from './pages/EmergencyChatPage';
 import MyCasePage from './pages/MyCasePage';
 import TrustVerificationPage from './pages/TrustVerificationPage';
 import LiveNotificationCenter from './components/Notifications/LiveNotificationCenter';
+import AllArticlesPage from './pages/AllArticlesPage';
+import PostDetailPage from './pages/PostDetailPage';
+import RescueRequestsPage from './pages/RescueRequestsPage';
+import RescueRequestDetailPage from './pages/RescueRequestDetailPage';
 
 // Route guards
 const ProtectedRoute = ({ children }) => {
@@ -100,7 +104,10 @@ function App() {
 
               <Route path="*" element={<Navigate to="/" replace />} />
 
-
+              <Route path="/emergency/rescue-requests" element={<ProtectedRoute><RescueRequestsPage /></ProtectedRoute>} />
+              <Route path="/emergency/rescue-requests/:id" element={<ProtectedRoute><RescueRequestDetailPage /></ProtectedRoute>} />
+              <Route path="/all-articles" element={<AllArticlesPage />} />
+              <Route path="/post/:id" element={<PostDetailPage />} />
               <Route path="/trust-verification" element={<ProtectedRoute><TrustVerificationPage /></ProtectedRoute>} />
             </Routes>
           </Suspense>

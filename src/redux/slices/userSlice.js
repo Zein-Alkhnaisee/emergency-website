@@ -212,7 +212,23 @@ const userSlice = createSlice({
       .addCase(resetPasswordThunk.rejected, (state, { payload }) => { state.loading = false; state.error = payload; })
 
       // ── resendOTP ───────────────────────────────────
-      .addCase(resendOTPThunk.fulfilled, (state, { payload }) => { state.temp_token = payload.temp_token; state.loading = false; })
+      .addCase(resendOTPThunk.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(resendOTPThunk.fulfilled, (state, { payload }) => {
+        state.loading = false;
+        // ✅ نحتفظ بـ temp_token القديم إذا لم يعد الخادم واحداً جديداً
+        if (payload?.temp_token) {
+          state.temp_token = payload.temp_token;
+        }
+        // إذا لم يعد الخادم رمزاً، نترك state.temp_token كما هو (لا نغيره)
+        state.error = null;
+      })
+      .addCase(resendOTPThunk.rejected, (state, { payload }) => {
+        state.loading = false;
+        state.error = payload;
+      })
 
       // ── verifyEmail ─────────────────────────────────
       .addCase(verifyEmailThunk.pending, (state) => { state.loading = true; state.error = null; })

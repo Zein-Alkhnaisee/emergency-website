@@ -17,6 +17,9 @@ import EditPostModal from '../components/Posts/EditPostModal';
 import Button from '../components/Shared/Button';
 import { confirmToast, showSuccess, showError } from '../utils/toastHelpers';
 
+// ✅ عدد المقالات المعروضة في الصفحة الرئيسية
+const DISPLAY_LIMIT = 5;
+
 const PostsPage = () => {
   const { t } = useTranslation();
   const dispatch = useDispatch();
@@ -25,36 +28,40 @@ const PostsPage = () => {
   const { posts, loading, error, filter, category, pagination } = useSelector(s => s.posts);
   const { currentUser, roles } = useSelector(s => s.user);
 
-  const [isModalOpen,     setIsModalOpen]     = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editPost,        setEditPost]        = useState(null);
-  const [page,            setPage]            = useState(1);
-  const [search,          setSearch]          = useState('');
-  const [searchInput,     setSearchInput]     = useState('');
+  const [editPost, setEditPost] = useState(null);
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState('');
 
-  const isMember  = !!currentUser;
+  const isMember = !!currentUser;
   const isTrusted = !!(
     roles?.includes('trusted') ||
     currentUser?.roles?.includes('trusted') ||
     currentUser?.role === 'trusted'
   );
 
+  // ── جلب المقالات ──────────────────────────────────────────────
   useEffect(() => {
     dispatch(fetchPosts({ page, perPage: 10, search }));
   }, [dispatch, page, search]);
 
+  // ── جلب تفاعلاتي ودمجها ──────────────────────────────────────
   useEffect(() => {
     if (!isMember || loading || posts.length === 0) return;
     dispatch(fetchMyReactionsAndMerge());
     dispatch(fetchMyCommentReactionsAndMerge());
   }, [dispatch, isMember, loading, posts.length]);
 
+  // ── البحث ──────────────────────────────────────────────────────
   const handleSearch = (e) => {
     e.preventDefault();
     setSearch(searchInput.trim());
     setPage(1);
   };
 
+  // ── حذف مقال ──────────────────────────────────────────────────
   const handleDeletePost = (postId) => {
     confirmToast(t('posts.confirmDelete'), async () => {
       try {
@@ -66,6 +73,7 @@ const PostsPage = () => {
     });
   };
 
+  // ── تصفية وترتيب المقالات ──────────────────────────────────────
   const filteredPosts = useMemo(() => {
     let result = [...posts];
     if (category !== 'all') result = result.filter(p => p.category === category);
@@ -83,6 +91,11 @@ const PostsPage = () => {
     }
   }, [posts, filter, category]);
 
+  // ✅ نأخذ أول 10 مقالات فقط للعرض في الصفحة الرئيسية
+  const displayedPosts = filteredPosts.slice(0, DISPLAY_LIMIT);
+  const hasMore = filteredPosts.length > DISPLAY_LIMIT;
+
+  // ── حالة التحميل الأولي ──────────────────────────────────────
   if (loading && page === 1 && posts.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
@@ -92,6 +105,7 @@ const PostsPage = () => {
     );
   }
 
+  // ── حالة الخطأ ────────────────────────────────────────────────
   if (error && posts.length === 0) {
     return (
       <div className="container my-10 px-4">
@@ -110,10 +124,12 @@ const PostsPage = () => {
     );
   }
 
+  // ── العرض الرئيسي ──────────────────────────────────────────────
   return (
     <div className="container my-10 px-4">
       <Heading title={t('posts.articlesAndAwareness')} subtitle={t('posts.tipsAndGuidance')} />
 
+      {/* ── شريط البحث والأزرار ── */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-8">
         <form onSubmit={handleSearch} className="flex w-full sm:max-w-sm gap-2" role="search">
           <div className="relative flex-1">
@@ -177,6 +193,7 @@ const PostsPage = () => {
 
       <PostFilters />
 
+      {/* ── تنبيه للزوار ── */}
       {!isMember && (
         <div className="mb-6 flex items-center justify-between gap-4 bg-primary/5 border border-primary/20 rounded-2xl px-5 py-3">
           <p className="text-sm text-gray-600 dark:text-gray-300">
@@ -191,63 +208,46 @@ const PostsPage = () => {
         </div>
       )}
 
-      {filteredPosts.length === 0 ? (
+      {/* ── قائمة المقالات ── */}
+      {displayedPosts.length === 0 ? (
         <div className="text-center py-20">
           <div className="text-7xl mb-4">📭</div>
           <p className="text-gray-400">{t('posts.noPosts')}</p>
         </div>
       ) : (
-        <div className="space-y-6">
-          {filteredPosts.map((post, index) => (
-            <PostCard
-              key={post.id}
-              post={post}
-              index={index}
-              isMember={isMember}
-              isTrusted={isTrusted}
-              onEdit={isTrusted ? (p) => { setEditPost(p); setIsEditModalOpen(true); } : undefined}
-              onDelete={isTrusted ? handleDeletePost : undefined}
-            />
-          ))}
-        </div>
-      )}
-
-      {pagination.lastPage > 1 && (
-        <nav aria-label={t('posts.pagination')} className="flex items-center justify-center gap-2 mt-10">
-          <PaginationButton
-            onClick={() => setPage(p => Math.max(1, p - 1))}
-            disabled={page === 1}
-            label={t('posts.previous')}
-          />
-          <div className="flex gap-1" role="list">
-            {buildPageList(page, pagination.lastPage).map((p, idx) =>
-              p === '...' ? (
-                <span key={`ellipsis-${idx}`} className="px-3 py-2 text-gray-400" aria-hidden="true">…</span>
-              ) : (
-                <button
-                  key={p}
-                  onClick={() => setPage(p)}
-                  aria-label={`${t('posts.page')} ${p}`}
-                  aria-current={page === p ? 'page' : undefined}
-                  className={`w-9 h-9 rounded-lg text-sm font-medium transition-all ${
-                    page === p
-                      ? 'bg-primary text-white shadow-md shadow-primary/30'
-                      : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200'
-                  }`}
-                >
-                  {p}
-                </button>
-              )
-            )}
+        <>
+          <div className="space-y-6">
+            {displayedPosts.map((post, index) => (
+              <PostCard
+                key={post.id}
+                post={post}
+                index={index}
+                isMember={isMember}
+                isTrusted={isTrusted}
+                onEdit={isTrusted ? (p) => { setEditPost(p); setIsEditModalOpen(true); } : undefined}
+                onDelete={isTrusted ? handleDeletePost : undefined}
+              />
+            ))}
           </div>
-          <PaginationButton
-            onClick={() => setPage(p => Math.min(pagination.lastPage, p + 1))}
-            disabled={page === pagination.lastPage}
-            label={t('posts.next')}
-          />
-        </nav>
+
+          {/* ── ✅ زر عرض المزيد (يظهر فقط إذا كان هناك مقالات أكثر من 10) ── */}
+          {hasMore && (
+            <div className="text-center mt-8">
+              <Link
+                to={`/all-articles?filter=${filter}&category=${category}&search=${search}`}
+                className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-xl hover:bg-primary/90 transition font-medium shadow-md hover:shadow-lg"
+              >
+                {t('posts.showAllArticles')}
+                <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full">
+                  +{filteredPosts.length - DISPLAY_LIMIT}
+                </span>
+              </Link>
+            </div>
+          )}
+        </>
       )}
 
+      {/* ── المودالات ── */}
       {isTrusted && (
         <CreatePostModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
       )}
@@ -259,26 +259,5 @@ const PostsPage = () => {
     </div>
   );
 };
-
-// ── Helpers ────────────────────────────────────────────────────
-const buildPageList = (currentPage, lastPage) =>
-  Array.from({ length: lastPage }, (_, i) => i + 1)
-    .filter(p => p === 1 || p === lastPage || Math.abs(p - currentPage) <= 1)
-    .reduce((acc, p, idx, arr) => {
-      if (idx > 0 && p - arr[idx - 1] > 1) acc.push('...');
-      acc.push(p);
-      return acc;
-    }, []);
-
-const PaginationButton = ({ onClick, disabled, label }) => (
-  <button
-    onClick={onClick}
-    disabled={disabled}
-    aria-label={label}
-    className="px-4 py-2 rounded-xl text-sm font-medium bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
-  >
-    {label}
-  </button>
-);
 
 export default PostsPage;

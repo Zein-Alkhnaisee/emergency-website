@@ -26,22 +26,41 @@
     <meta property="og:description" content="مساعدة فورية من متطوعين قريبين. أبلغ عن حالات الطوارئ وأنقذ الأرواح." />
     <meta property="og:type"        content="website" />
     <meta property="og:image"       content="/emergency-website/emergency.png" />
-    <script type="module" crossorigin src="/emergency-website/assets/js/index-C-SQ-SSU.js"></script>
+
+    <!-- ✅ سكريبت إعادة التوجيه لحل مشكلة زر الرجوع والروابط -->
+    <script>
+      (function() {
+        var base = '/emergency-website/';
+        var path = window.location.pathname;
+        // إذا كان المسار لا يبدأ بـ base ولا هو '/' أو '/index.html' ولا هو ملف (يحتوي على نقطة)
+        if (
+          !path.startsWith(base) &&
+          path !== '/' &&
+          path !== '' &&
+          !path.match(/\.[a-zA-Z0-9]+$/)
+        ) {
+          // إذا كان المسار '/register' مثلاً، نحوله إلى '/emergency-website/register'
+          var newPath = base + path.replace(/^\//, '');
+          window.location.replace(newPath);
+        }
+      })();
+    </script>
+    <script type="module" crossorigin src="/emergency-website/assets/js/index-Be0nx6dS.js"></script>
     <link rel="modulepreload" crossorigin href="/emergency-website/assets/js/rolldown-runtime-ClEQ0wsm.js">
     <link rel="modulepreload" crossorigin href="/emergency-website/assets/js/i18n-ByTqyf2V.js">
     <link rel="modulepreload" crossorigin href="/emergency-website/assets/js/redux-t4zT47Wt.js">
-    <link rel="modulepreload" crossorigin href="/emergency-website/assets/js/router-CQIMrgaO.js">
+    <link rel="modulepreload" crossorigin href="/emergency-website/assets/js/router-CCwOi_7F.js">
     <link rel="modulepreload" crossorigin href="/emergency-website/assets/js/leaflet-CRug3km9.js">
     <link rel="modulepreload" crossorigin href="/emergency-website/assets/js/aos-B9kw0ZhM.js">
     <link rel="modulepreload" crossorigin href="/emergency-website/assets/js/ui-libs-CjFUeKFG.js">
     <link rel="modulepreload" crossorigin href="/emergency-website/assets/js/vendor-ChocnfUs.js">
     <link rel="modulepreload" crossorigin href="/emergency-website/assets/js/toast-Vq6hQZSE.js">
     <link rel="modulepreload" crossorigin href="/emergency-website/assets/js/react-core-HamNfJ4C.js">
-    <link rel="modulepreload" crossorigin href="/emergency-website/assets/js/icons-7BLF1jRa.js">
+    <link rel="modulepreload" crossorigin href="/emergency-website/assets/js/icons-DrpKPEkk.js">
     <link rel="modulepreload" crossorigin href="/emergency-website/assets/js/api-BMJMjLiW.js">
     <link rel="stylesheet" crossorigin href="/emergency-website/assets/css/leaflet-DtQ6Dmri.css">
     <link rel="stylesheet" crossorigin href="/emergency-website/assets/css/aos-Ds0Nih7Q.css">
-    <link rel="stylesheet" crossorigin href="/emergency-website/assets/css/index-Cd3nC793.css">
+    <link rel="stylesheet" crossorigin href="/emergency-website/assets/css/index-r9czCqSV.css">
   </head>
   <body>
     <div id="root"></div>

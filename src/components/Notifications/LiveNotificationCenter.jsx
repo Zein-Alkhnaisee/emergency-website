@@ -2,9 +2,11 @@
 import { useEffect, useRef, useState, useCallback, memo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   FaFire, FaCar, FaHeartbeat, FaExclamationTriangle,
   FaStar, FaBell, FaTimes, FaClock, FaCheck, FaMapMarkerAlt,
+  FaCheckCircle, FaTimesCircle,
 } from 'react-icons/fa';
 import { fetchMyNotifications } from '../../redux/slices/emergencyNotificationsSlice';
 import { fetchNotifications as fetchUserNotifications } from '../../redux/slices/trustSlice';
@@ -14,7 +16,7 @@ import {
   addNotificationRealtime,
   setUnreadCount,
 } from '../../redux/slices/rescueRequestsSlice';
-// ✅ NEW: initEcho مضاف هون — هاد الكومبوننت هلق هو المسؤول عن تجهيز الاتصال
+import { fetchMyActiveStatus } from '../../redux/slices/emergencyCasesSlice'; // ✅ إضافة
 import { initEcho, getEcho, subscribeToUserNotificationsV2 } from '../../services/echo';
 import { useEmergencyNotifications } from '../../hooks/useEmergencyNotifications';
 
@@ -23,11 +25,9 @@ const MAX_VISIBLE_TOASTS = 4;
 const EMERGENCY_POLL_MS = 20000;
 const USER_NOTIF_POLL_MS = 25000;
 const SEEN_IDS_CAP = 300;
-// ✅ NEW: كم مرة نحاول نعيد الاشتراك لحد ما echo يجهز
 const ECHO_RETRY_MS = 1000;
-const ECHO_RETRY_MAX_ATTEMPTS = 15; // ~15 ثانية كحد أقصى
+const ECHO_RETRY_MAX_ATTEMPTS = 15;
 
-// ── أيقونات وتسميات حالات الطوارئ ─────────────────────────────
 const CASE_ICON = {
   fire: <FaFire className="text-red-400" />,
   accident: <FaCar className="text-orange-400" />,
@@ -51,7 +51,6 @@ const SEVERITY_COLOR = {
   high: 'text-red-500',
 };
 
-// ── Local storage helpers ──────────────────────────────────────
 const loadSeen = (key) => {
   try {
     const raw = localStorage.getItem(key);
@@ -69,7 +68,6 @@ const persistSeen = (key, set) => {
   } catch { /* ignore quota errors */ }
 };
 
-// ── تحويل إشعار طوارئ إلى توست مع معلومات إضافية ────────────
 const buildEmergencyToast = (n) => {
   const caseType = n.emergency?.case_type || 'other';
   const severity = n.emergency?.severity || 'high';
@@ -93,13 +91,11 @@ const buildEmergencyToast = (n) => {
   };
 };
 
-// ── تحويل إشعار SOS جديد (من القناة الجديدة) إلى توست ──────
 const buildSosToast = (notif) => {
   const data = notif.data || {};
   const severity = data.severity || 'high';
   const caseType = data.case_type || 'other';
   const nav = notif.navigation || data;
-
   return {
     key: `sos-${notif.id}`,
     kind: 'emergency',
@@ -120,11 +116,9 @@ const buildSosToast = (notif) => {
   };
 };
 
-// ── تحويل إشعار عام إلى توست ──────────────────────────────────
 const buildUserToast = (n) => {
   const data = n.data || n;
   const isRating = data.type === 'rating' || !!data.rater_name || !!data.score;
-
   if (isRating) {
     const raterName = data.rater_name || data.rater?.name || 'مستخدم';
     const positive = (data.score || data.rating) === 'positive';
@@ -137,7 +131,6 @@ const buildUserToast = (n) => {
       path: '/profile',
     };
   }
-
   return {
     key: `usr-${n.id}`,
     kind: 'generic',
@@ -148,7 +141,6 @@ const buildUserToast = (n) => {
   };
 };
 
-// ── تحويل إشعار خدمة إلى توست ─────────────────────────────────
 const buildServiceToast = (notification) => {
   const type = notification.type || 'service_booking_received';
   const icons = {
@@ -167,7 +159,6 @@ const buildServiceToast = (notification) => {
     service_request_approved: 'تم اعتماد خدمتك',
     service_request_rejected: 'تم رفض خدمتك',
   };
-
   return {
     key: `svc-${notification.id}`,
     kind: 'service',
@@ -178,11 +169,12 @@ const buildServiceToast = (notification) => {
   };
 };
 
-// ── بطاقة توست واحدة ──────────────────────────────────────────
-const ToastItem = memo(({ toast, onExpire, onClick, onAccept, onReject }) => {
+// ── ToastItem (معدل سابقاً) ──
+const ToastItem = memo(({ toast, onExpire, onClick, onAccept, onReject, hasActiveEmergency, onGoToMyCase }) => {
   const [paused, setPaused] = useState(false);
   const [leaving, setLeaving] = useState(false);
-  const isEmergencyPending = toast.kind === 'emergency' && toast.status === 'pending';
+  const isEmergencyPending = toast.kind === 'emergency' && toast.status === 'pending' && !hasActiveEmergency;
+  const isBlockedByActiveCase = toast.kind === 'emergency' && toast.status === 'pending' && hasActiveEmergency;
 
   const handleClose = (e) => {
     e.stopPropagation();
@@ -198,13 +190,15 @@ const ToastItem = memo(({ toast, onExpire, onClick, onAccept, onReject }) => {
 
   return (
     <div
-      onClick={() => { onClick(toast); handleClose({ stopPropagation() {} }); }}
+      onClick={() => { onClick(toast); handleClose({ stopPropagation() { } }); }}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       className={`
         relative w-80 max-w-[90vw] cursor-pointer overflow-hidden rounded-2xl
-        bg-white dark:bg-gray-800 shadow-2xl border border-gray-100 dark:border-gray-700
+        bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm shadow-2xl 
+        border border-gray-100/70 dark:border-gray-700/70
         ${leaving ? 'lnc-leave' : 'lnc-enter'}
+        transition-all duration-200 hover:shadow-3xl
       `}
       role="alert"
     >
@@ -234,19 +228,36 @@ const ToastItem = memo(({ toast, onExpire, onClick, onAccept, onReject }) => {
               )}
             </div>
           )}
+          
+          {/* ✅ حالة الحظر عند وجود حالة نشطة */}
+          {isBlockedByActiveCase && (
+            <div className="mt-2">
+              <p className="text-[11px] text-amber-600 dark:text-amber-400 mb-1.5 flex items-center gap-1">
+                <span>⚠️</span> لديك حالة طوارئ نشطة بالفعل
+              </p>
+              <button
+                onClick={(e) => { e.stopPropagation(); onGoToMyCase?.(); }}
+                className="w-full bg-amber-500 hover:bg-amber-600 active:scale-95 text-white px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200"
+              >
+                اذهب إلى حالتي
+              </button>
+            </div>
+          )}
+
+          {/* ✅ أزرار القبول والرفض (تظهر فقط إذا لم يكن هناك حالة نشطة) */}
           {isEmergencyPending && (
             <div className="flex gap-2 mt-2">
               <button
                 onClick={(e) => { e.stopPropagation(); onAccept?.(); }}
-                className="flex-1 bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
+                className="flex-1 bg-green-500 hover:bg-green-600 active:scale-95 text-white px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 hover:shadow-lg hover:shadow-green-500/30"
               >
-                ✅ أقبل
+                <FaCheck className="text-white text-xs inline mr-1" /> أقبل
               </button>
               <button
                 onClick={(e) => { e.stopPropagation(); onReject?.(); }}
-                className="flex-1 bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
+                className="flex-1 bg-red-500 hover:bg-red-600 active:scale-95 text-white px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 hover:shadow-lg hover:shadow-red-500/30"
               >
-                ❌ أرفض
+                <FaTimes className="text-white text-xs inline mr-1" /> أرفض
               </button>
             </div>
           )}
@@ -259,10 +270,9 @@ const ToastItem = memo(({ toast, onExpire, onClick, onAccept, onReject }) => {
           <FaTimes className="text-xs" />
         </button>
       </div>
-
       <div className="h-1 w-full bg-gray-100 dark:bg-gray-700">
         <div
-          className="h-full bg-primary"
+          className="h-full bg-gradient-to-r from-primary to-secondary"
           style={{
             animation: `lnc-shrink ${TOAST_DURATION_MS}ms linear forwards`,
             animationPlayState: paused ? 'paused' : 'running',
@@ -275,26 +285,40 @@ const ToastItem = memo(({ toast, onExpire, onClick, onAccept, onReject }) => {
 });
 ToastItem.displayName = 'ToastItem';
 
-// ── المكوّن الرئيسي ──────────────────────────────────────────────
+// ── المكوّن الرئيسي ──
 const LiveNotificationCenter = () => {
+  const { t } = useTranslation();
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { acceptEmergency, rejectEmergency } = useEmergencyNotifications();
 
-  const { currentUser, isAuthenticated } = useSelector(s => s.user);
-  const emergencyList = useSelector(s => s.emergencyNotifications?.list || []);
-  const userNotifList = useSelector(s => s.trust?.notifications || []);
-  const { unreadCount: unreadCountV2 } = useSelector(s => s.rescueRequests || { unreadCount: 0 });
+  const { currentUser, isAuthenticated, roles } = useSelector(state => state.user);
+  const emergencyList = useSelector(state => state.emergencyNotifications?.list || []);
+  const userNotifList = useSelector(state => state.trust?.notifications || []);
+  const rescueState = useSelector(state => state.rescueRequests || { unreadCount: 0 });
+  const unreadCountV2 = rescueState.unreadCount;
+
+  // ✅ قراءة activeStatus
+  const { activeStatus } = useSelector(state => state.emergencyCases || {});
+  const hasActiveEmergency = !!activeStatus?.has_active_emergency;
+
+  // ✅ التحقق من أن المستخدم لديه دور `trusted`
+  const isTrusted = roles?.includes('trusted') || currentUser?.role === 'trusted';
 
   const [toasts, setToasts] = useState([]);
   const userId = currentUser?.id;
-  // ✅ NEW: نحتاج التوكن لتجهيز initEcho من هون
   const token = currentUser?.token || localStorage.getItem('token');
 
   const seenEmgRef = useRef(new Set());
   const seenUsrRef = useRef(new Set());
   const initEmgRef = useRef(false);
   const initUsrRef = useRef(false);
+
+  // ✅ جلب حالة النشاط فوراً عند تسجيل الدخول، بغض النظر عن الصفحة الحالية
+  useEffect(() => {
+    if (!isAuthenticated || !userId) return;
+    dispatch(fetchMyActiveStatus());
+  }, [dispatch, isAuthenticated, userId]);
 
   const pushToast = useCallback((toast) => {
     setToasts(prev => {
@@ -317,116 +341,106 @@ const LiveNotificationCenter = () => {
   }, [navigate]);
 
   const handleAccept = useCallback(async (toast) => {
-    if (!toast.notifId) return;
-    await acceptEmergency(toast.notifId);
+    if (!toast.emergencyId) return;
+    await acceptEmergency(toast.emergencyId);
     removeToast(toast.key);
-    dispatch(fetchMyNotifications({ perPage: 30 }));
-    dispatch(fetchAllNotifications());
-  }, [acceptEmergency, removeToast, dispatch]);
+    dispatch(fetchMyActiveStatus()); // ✅ تحديث فوري
+    if (isTrusted) {
+      dispatch(fetchMyNotifications({ perPage: 30 }));
+      dispatch(fetchAllNotifications());
+    }
+  }, [acceptEmergency, removeToast, dispatch, isTrusted]);
 
   const handleReject = useCallback(async (toast) => {
-    if (!toast.notifId) return;
-    await rejectEmergency(toast.notifId);
+    if (!toast.emergencyId) return;
+    await rejectEmergency(toast.emergencyId);
     removeToast(toast.key);
-    dispatch(fetchMyNotifications({ perPage: 30 }));
-    dispatch(fetchAllNotifications());
-  }, [rejectEmergency, removeToast, dispatch]);
+    if (isTrusted) {
+      dispatch(fetchMyNotifications({ perPage: 30 }));
+      dispatch(fetchAllNotifications());
+    }
+  }, [rejectEmergency, removeToast, dispatch, isTrusted]);
 
-  // ── تهيئة مفاتيح localStorage عند تغيّر المستخدم ─────────────
+  // ✅ تحميل الإشعارات فقط إذا كان المستخدم موثّقاً
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || !isTrusted) return;
     seenEmgRef.current = loadSeen(`lnc_seen_emg_${userId}`);
     seenUsrRef.current = loadSeen(`lnc_seen_usr_${userId}`);
     initEmgRef.current = false;
     initUsrRef.current = false;
-  }, [userId]);
+  }, [userId, isTrusted]);
 
-  // ── مقارنة قائمة إشعارات الطوارئ لاكتشاف الجديد ─────────────
   useEffect(() => {
-    if (!userId || !Array.isArray(emergencyList)) return;
-
+    if (!userId || !Array.isArray(emergencyList) || !isTrusted) return;
     if (!initEmgRef.current) {
       emergencyList.forEach(n => seenEmgRef.current.add(n.id));
       persistSeen(`lnc_seen_emg_${userId}`, seenEmgRef.current);
       initEmgRef.current = true;
       return;
     }
-
     const fresh = emergencyList.filter(n => !seenEmgRef.current.has(n.id));
     if (fresh.length === 0) return;
-
     fresh.forEach(n => {
       seenEmgRef.current.add(n.id);
       pushToast(buildEmergencyToast(n));
     });
     persistSeen(`lnc_seen_emg_${userId}`, seenEmgRef.current);
-  }, [emergencyList, userId, pushToast]);
+  }, [emergencyList, userId, pushToast, isTrusted]);
 
-  // ── مقارنة قائمة الإشعارات العامة (تقييمات إلخ) لاكتشاف الجديد ──
   useEffect(() => {
-    if (!userId || !Array.isArray(userNotifList)) return;
-
+    if (!userId || !Array.isArray(userNotifList) || !isTrusted) return;
     if (!initUsrRef.current) {
       userNotifList.forEach(n => seenUsrRef.current.add(n.id));
       persistSeen(`lnc_seen_usr_${userId}`, seenUsrRef.current);
       initUsrRef.current = true;
       return;
     }
-
     const fresh = userNotifList.filter(n => !seenUsrRef.current.has(n.id));
     if (fresh.length === 0) return;
-
     fresh.forEach(n => {
       seenUsrRef.current.add(n.id);
       pushToast(buildUserToast(n));
     });
     persistSeen(`lnc_seen_usr_${userId}`, seenUsrRef.current);
-  }, [userNotifList, userId, pushToast]);
+  }, [userNotifList, userId, pushToast, isTrusted]);
 
-  // ── Polling احتياطي مضمون ────────────────────────────────────
+  // ✅ استدعاء واجهات الطوارئ فقط إذا كان المستخدم موثّقاً
   useEffect(() => {
-    if (!isAuthenticated || !userId) return undefined;
+    if (!isAuthenticated || !userId || !isTrusted) return undefined;
 
     dispatch(fetchMyNotifications({ perPage: 30 }));
     dispatch(fetchUserNotifications());
     dispatch(fetchUserNotificationsV2({ perPage: 30 }));
 
     const emgInterval = setInterval(() => {
-      dispatch(fetchMyNotifications({ perPage: 30 }));
+      if (isTrusted) dispatch(fetchMyNotifications({ perPage: 30 }));
     }, EMERGENCY_POLL_MS);
 
     const usrInterval = setInterval(() => {
-      dispatch(fetchUserNotifications());
-      dispatch(fetchUserNotificationsV2({ perPage: 30 }));
+      if (isTrusted) {
+        dispatch(fetchUserNotifications());
+        dispatch(fetchUserNotificationsV2({ perPage: 30 }));
+      }
     }, USER_NOTIF_POLL_MS);
 
     return () => {
       clearInterval(emgInterval);
       clearInterval(usrInterval);
     };
-  }, [dispatch, isAuthenticated, userId]);
+  }, [dispatch, isAuthenticated, userId, isTrusted]);
 
-  // ── Realtime (القناة الجديدة) ──────────────────────────────────
-  // ✅ FIXED:
-  //   1. هاد الكومبوننت هلق هو المسؤول عن استدعاء initEcho(token) — مش لازم ينتظر
-  //      إنه المستخدم يفتح صفحة الشات الأول (initEcho نفسها idempotent: إذا في
-  //      اتصال شغال بنفس التوكن ما بتعمل شي).
-  //   2. الاشتراك عم يعيد المحاولة (retry) لحد ما getEcho() يرجع instance جاهز،
-  //      بدل ما يعتمد على تشغيل الـ effect مرة وحدة وبس.
+  // ✅ WebSocket فقط للمستخدمين الموثّقين
   useEffect(() => {
-    if (!isAuthenticated || !userId || !token) return undefined;
-
+    if (!isAuthenticated || !userId || !token || !isTrusted) return undefined;
     let unsubscribe;
     let cancelled = false;
     let attempts = 0;
     let retryTimer;
 
-    // نجهز الاتصال هون مباشرة (لا داعي لانتظار صفحة الشات)
     initEcho(token);
 
     const trySubscribe = () => {
       if (cancelled) return;
-
       const echo = getEcho();
       if (echo) {
         unsubscribe = subscribeToUserNotificationsV2(userId, {
@@ -434,27 +448,19 @@ const LiveNotificationCenter = () => {
             console.log('📨 New SOS notification received:', payload);
             const notif = payload.notification;
             if (!notif) return;
-
-            // تحديث العدد غير المقروء
             if (payload.unread_count !== undefined) {
               dispatch(setUnreadCount(payload.unread_count));
             }
-
-            // إذا كان إشعار SOS، نعرض توست
             if (notif.type === 'sos_emergency') {
               const toast = buildSosToast(notif);
               pushToast(toast);
             }
-
-            // تحديث قائمة الإشعارات في الخلفية
             dispatch(fetchUserNotificationsV2({ perPage: 30 }));
             dispatch(fetchAllNotifications());
           },
         });
         return;
       }
-
-      // لسا الاتصال مش جاهز — نعيد المحاولة لحد سقف معين
       attempts += 1;
       if (attempts < ECHO_RETRY_MAX_ATTEMPTS) {
         retryTimer = setTimeout(trySubscribe, ECHO_RETRY_MS);
@@ -470,9 +476,9 @@ const LiveNotificationCenter = () => {
       clearTimeout(retryTimer);
       unsubscribe?.();
     };
-  }, [dispatch, isAuthenticated, userId, token, pushToast]);
+  }, [dispatch, isAuthenticated, userId, token, pushToast, isTrusted]);
 
-  if (!isAuthenticated || toasts.length === 0) return null;
+  if (!isAuthenticated || !isTrusted || toasts.length === 0) return null;
 
   return (
     <>
@@ -495,8 +501,10 @@ const LiveNotificationCenter = () => {
             toast={toast}
             onExpire={removeToast}
             onClick={handleToastClick}
-            onAccept={toast.kind === 'emergency' && toast.status === 'pending' ? () => handleAccept(toast) : undefined}
-            onReject={toast.kind === 'emergency' && toast.status === 'pending' ? () => handleReject(toast) : undefined}
+            hasActiveEmergency={hasActiveEmergency}
+            onGoToMyCase={() => { navigate('/my-case'); removeToast(toast.key); }}
+            onAccept={toast.kind === 'emergency' && toast.status === 'pending' && !hasActiveEmergency ? () => handleAccept(toast) : undefined}
+            onReject={toast.kind === 'emergency' && toast.status === 'pending' && !hasActiveEmergency ? () => handleReject(toast) : undefined}
           />
         ))}
       </div>

@@ -9,7 +9,6 @@ import Button from '../Shared/Button';
 import AvailabilityManager from './AvailabilityManager';
 import LocationPickerMap from '../Profile/LocationPickerMap';
 
-// دالة عكسية للحصول على اسم المدينة من الإحداثيات (Reverse Geocoding)
 const fetchAddressFromCoords = async (lat, lng) => {
   try {
     const res = await fetch(
@@ -39,29 +38,26 @@ const AddServiceModal = ({ isOpen, onClose }) => {
     contact_phone: '',
   });
   const [availability, setAvailability] = useState([]);
-  const [mapLocation, setMapLocation] = useState(null); // لتحديث الخريطة
+  const [mapLocation, setMapLocation] = useState(null);
 
   useEffect(() => {
     if (isOpen) {
       dispatch(fetchCategories());
-      // جلب موقع المستخدم الحالي (اختياري)
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           (pos) => {
             const coords = [pos.coords.latitude, pos.coords.longitude];
             setMapLocation(coords);
-            // تعبئة الحقول تلقائياً
             setForm(prev => ({
               ...prev,
               latitude: coords[0].toString(),
               longitude: coords[1].toString(),
             }));
-            // جلب المدينة
             fetchAddressFromCoords(coords[0], coords[1]).then(({ city }) => {
               setForm(prev => ({ ...prev, city: city || '' }));
             });
           },
-          () => {} // إذا رفض المستخدم، نترك الحقول فارغة
+          () => { }
         );
       }
     }
@@ -73,7 +69,6 @@ const AddServiceModal = ({ isOpen, onClose }) => {
       latitude: coords[0].toString(),
       longitude: coords[1].toString(),
     }));
-    // جلب المدينة من الإحداثيات
     const { city } = await fetchAddressFromCoords(coords[0], coords[1]);
     setForm(prev => ({ ...prev, city: city || '' }));
     setMapLocation(coords);
@@ -107,24 +102,23 @@ const AddServiceModal = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div 
-        className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-lg max-h-[95vh] flex flex-col shadow-2xl"
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in" onClick={onClose}>
+      <div
+        className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-lg max-h-[95vh] flex flex-col shadow-2xl border border-white/10 dark:border-gray-700/50 animate-slide-in-up"
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex justify-between items-center p-5 border-b dark:border-gray-700 shrink-0">
-          <h3 className="text-xl font-bold">{t('services.addService')}</h3>
-          <button onClick={onClose}><FaTimes /></button>
+        <div className="flex justify-between items-center p-5 border-b border-gray-100 dark:border-gray-700 shrink-0">
+          <h3 className="text-xl font-bold text-gray-800 dark:text-white">{t('services.addService')}</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-all duration-200 hover:rotate-90"><FaTimes /></button>
         </div>
         <div className="p-5 overflow-y-auto flex-1 custom-scrollbar">
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* التصنيف */}
             <div>
-              <label className="block text-sm font-medium mb-1">{t('services.category')} *</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('services.category')} *</label>
               <select
                 value={form.category_id}
-                onChange={e => setForm({...form, category_id: e.target.value})}
-                className="w-full p-2 border rounded dark:bg-gray-700"
+                onChange={e => setForm({ ...form, category_id: e.target.value })}
+                className="w-full p-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-800 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent transition-all duration-200"
                 required
               >
                 <option value="">{t('services.selectCategory')}</option>
@@ -132,22 +126,20 @@ const AddServiceModal = ({ isOpen, onClose }) => {
               </select>
             </div>
 
-            {/* اسم الخدمة */}
             <div>
-              <label className="block text-sm font-medium mb-1">{t('services.serviceName')} *</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('services.serviceName')} *</label>
               <input
                 type="text"
                 value={form.name}
-                onChange={e => setForm({...form, name: e.target.value})}
-                className="w-full p-2 border rounded dark:bg-gray-700"
+                onChange={e => setForm({ ...form, name: e.target.value })}
+                className="w-full p-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-800 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent transition-all duration-200"
                 required
               />
             </div>
 
-            {/* الخريطة + الإحداثيات */}
             <div>
-              <label className="block text-sm font-medium mb-1">{t('services.selectLocation')}</label>
-              <div className="h-32 md:h-48 rounded-xl overflow-hidden mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('services.selectLocation')}</label>
+              <div className="h-32 md:h-48 rounded-xl overflow-hidden mb-2 shadow-inner">
                 <LocationPickerMap
                   initialLocation={mapLocation}
                   onLocationSelect={handleMapSelect}
@@ -159,62 +151,70 @@ const AddServiceModal = ({ isOpen, onClose }) => {
               </p>
             </div>
 
-            {/* الإحداثيات (خط العرض والطول) */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium mb-1">{t('services.latitude')} *</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('services.latitude')} *</label>
                 <input
                   type="number"
                   step="any"
                   value={form.latitude}
-                  onChange={e => setForm({...form, latitude: e.target.value})}
-                  className="w-full p-2 border rounded dark:bg-gray-700"
+                  onChange={e => setForm({ ...form, latitude: e.target.value })}
+                  className="w-full p-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-800 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent transition-all duration-200"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">{t('services.longitude')} *</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('services.longitude')} *</label>
                 <input
                   type="number"
                   step="any"
                   value={form.longitude}
-                  onChange={e => setForm({...form, longitude: e.target.value})}
-                  className="w-full p-2 border rounded dark:bg-gray-700"
+                  onChange={e => setForm({ ...form, longitude: e.target.value })}
+                  className="w-full p-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-800 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent transition-all duration-200"
                   required
                 />
               </div>
             </div>
 
-            {/* المدينة */}
             <div>
-              <label className="block text-sm font-medium mb-1">{t('services.city')} *</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('services.city')} *</label>
               <input
                 type="text"
                 value={form.city}
-                onChange={e => setForm({...form, city: e.target.value})}
-                className="w-full p-2 border rounded dark:bg-gray-700"
+                onChange={e => setForm({ ...form, city: e.target.value })}
+                className="w-full p-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-800 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent transition-all duration-200"
                 required
               />
             </div>
 
-            {/* رقم الهاتف */}
             <div>
-              <label className="block text-sm font-medium mb-1">{t('services.contactPhone')}</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('services.contactPhone')}</label>
               <input
                 type="tel"
                 value={form.contact_phone}
-                onChange={e => setForm({...form, contact_phone: e.target.value})}
-                className="w-full p-2 border rounded dark:bg-gray-700"
+                onChange={e => setForm({ ...form, contact_phone: e.target.value })}
+                className="w-full p-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-800 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent transition-all duration-200"
               />
             </div>
 
-            {/* أوقات التوفر - واجهة تفاعلية */}
             <AvailabilityManager value={availability} onChange={setAvailability} />
 
-            {/* الأزرار */}
             <div className="flex gap-3 justify-end pt-2 shrink-0">
-              <Button text={t('common.cancel')} bgColor="bg-gray-500" textColor="text-white" handler={onClose} disabled={submitting} />
-              <Button type="submit" text={submitting ? t('common.loading') : t('services.submit')} bgColor="bg-primary" textColor="text-white" disabled={submitting} />
+              <Button
+                text={t('common.cancel')}
+                bgColor="bg-gray-100 dark:bg-gray-700"
+                textColor="text-gray-700 dark:text-gray-300"
+                handler={onClose}
+                disabled={submitting}
+              />
+              <Button
+                type="submit"
+                text={submitting ? t('common.loading') : t('services.submit')}
+                bgColor="bg-[var(--color-primary)] hover:bg-[var(--color-primary)]/90"
+                textColor="text-white"
+                disabled={submitting}
+                className="shadow-[var(--color-primary)]/20 hover:shadow-[var(--color-primary)]/40"
+              />
             </div>
           </form>
         </div>

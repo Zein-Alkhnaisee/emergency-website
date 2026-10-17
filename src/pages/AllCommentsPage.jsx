@@ -1,4 +1,3 @@
-// src/pages/AllCommentsPage.jsx
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, Link } from 'react-router-dom';
@@ -47,24 +46,24 @@ const AllCommentsPage = () => {
     <div className="container mx-auto p-4 max-w-4xl">
       <div className="flex items-center justify-between mb-6">
         <Heading title="جميع تعليقاتي" subtitle="جميع التعليقات التي كتبتها على المقالات" />
-        <Link to="/my-comments" className="flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-xl text-sm hover:bg-gray-200 transition">
+        <Link to="/my-comments" className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-xl text-sm hover:bg-gray-200 dark:hover:bg-gray-600 transition-all duration-200 hover:shadow-md active:scale-[0.98]">
           <FaArrowRight /> رجوع
         </Link>
       </div>
 
       {localComments.length === 0 ? (
-        <p className="text-gray-500 text-center">لا توجد تعليقات</p>
+        <p className="text-gray-500 dark:text-gray-400 text-center py-20">لا توجد تعليقات</p>
       ) : (
         <div className="space-y-3">
           {localComments.map(comment => (
             <div
               key={comment.id}
-              className="border rounded-xl p-4 bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition cursor-pointer"
+              className="border rounded-xl p-4 bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer hover:-translate-y-0.5 border-gray-200 dark:border-gray-700 animate-fade-up"
               onClick={() => goToArticle(comment.on?.id || comment.article_id)}
             >
               <p className="text-gray-700 dark:text-gray-300">{comment.content}</p>
-              <div className="text-xs text-gray-400 mt-2 flex items-center gap-2">
-                <span>في مقال: <span className="font-medium">{comment.on?.title || `#${comment.on?.id}`}</span></span>
+              <div className="text-xs text-gray-400 mt-2 flex items-center gap-2 flex-wrap">
+                <span>في مقال: <span className="font-medium text-primary">{comment.on?.title || `#${comment.on?.id}`}</span></span>
                 <span>•</span>
                 <span>{new Date(comment.created_at).toLocaleDateString('ar-EG')}</span>
                 <span className="flex items-center gap-1 text-primary"><FaEye className="text-[10px]" /> اضغط للعرض</span>

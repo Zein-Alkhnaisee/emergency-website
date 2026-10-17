@@ -87,9 +87,9 @@ const RoleRequestsPage = () => {
 
   const getStatusBadge = (status) => {
     const colors = {
-      pending: 'bg-yellow-100 text-yellow-800',
-      approved: 'bg-green-100 text-green-800',
-      rejected: 'bg-red-100 text-red-800',
+      pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
+      approved: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+      rejected: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
     };
     return colors[status] || 'bg-gray-100';
   };
@@ -99,23 +99,23 @@ const RoleRequestsPage = () => {
       <Heading title={t('roleRequests.title')} subtitle={t('roleRequests.submitNew')} />
 
       {!isTrusted ? (
-        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-6 text-center mb-8">
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-6 text-center mb-8 animate-fade-up">
           <p className="text-yellow-700 dark:text-yellow-300 font-medium mb-2">
             {t('roleRequests.trustedRequired')}
           </p>
-          <Link to="/trust-verification" className="text-primary underline hover:text-primary/80 transition">
+          <Link to="/trust-verification" className="text-primary underline hover:text-primary/80 transition-colors">
             {t('roleRequests.goToVerification')}
           </Link>
         </div>
       ) : (
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md mb-8">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md mb-8 animate-fade-up">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-1">{t('roleRequests.roleType')} *</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('roleRequests.roleType')} *</label>
               <select
                 value={roleType}
                 onChange={(e) => setRoleType(e.target.value)}
-                className="w-full p-2 border rounded dark:bg-gray-700"
+                className="w-full p-2.5 border rounded-xl dark:bg-gray-700 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all duration-200"
                 required
               >
                 <option value="">-- {t('common.select')} --</option>
@@ -126,12 +126,12 @@ const RoleRequestsPage = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">{t('roleRequests.docs')} *</label>
-              <div className="flex items-center gap-3">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('roleRequests.docs')} *</label>
+              <div className="flex items-center gap-3 flex-wrap">
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="flex items-center gap-2 px-4 py-2 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl hover:border-primary transition"
+                  className="flex items-center gap-2 px-4 py-2 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl hover:border-primary transition-all duration-200 hover:scale-105"
                 >
                   <FaUpload className="text-gray-500" />
                   <span className="text-sm text-gray-600 dark:text-gray-300">
@@ -146,12 +146,12 @@ const RoleRequestsPage = () => {
                   className="hidden"
                 />
                 {imagePreview && (
-                  <div className="relative w-16 h-16 rounded-lg overflow-hidden border">
+                  <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600 shadow-sm">
                     <img src={imagePreview} alt={t('roleRequests.preview')} className="w-full h-full object-cover" />
                     <button
                       type="button"
                       onClick={() => { setImageFile(null); setImagePreview(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}
-                      className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs"
+                      className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600 transition-all duration-200 hover:scale-110"
                     >
                       ✕
                     </button>
@@ -162,13 +162,13 @@ const RoleRequestsPage = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">{t('roleRequests.metadata')}</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('roleRequests.metadata')}</label>
               <textarea
                 value={metadata}
                 onChange={(e) => setMetadata(e.target.value)}
                 placeholder={t('roleRequests.metadataPlaceholder')}
                 rows={2}
-                className="w-full p-2 border rounded dark:bg-gray-700 font-mono text-sm"
+                className="w-full p-2.5 border rounded-xl dark:bg-gray-700 dark:border-gray-600 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all duration-200"
               />
             </div>
 
@@ -185,12 +185,12 @@ const RoleRequestsPage = () => {
           {requests.map(req => {
             const imgUrl = req.submitted_img || req.attachment_url;
             return (
-              <div key={req.id} className="border rounded-xl p-4 bg-gray-50 dark:bg-gray-800/50 flex items-center gap-4">
+              <div key={req.id} className="border rounded-xl p-4 bg-gray-50 dark:bg-gray-800/50 flex items-center gap-4 shadow-sm hover:shadow-md transition-all duration-200 animate-fade-up">
                 {imgUrl && (
-                  <img src={imgUrl} alt={t('roleRequests.document')} className="w-14 h-14 rounded-lg object-cover border" />
+                  <img src={imgUrl} alt={t('roleRequests.document')} className="w-14 h-14 rounded-lg object-cover border border-gray-200 dark:border-gray-600" />
                 )}
                 <div className="flex-1">
-                  <p className="font-semibold">{t(`roleRequests.${req.role_type}`)}</p>
+                  <p className="font-semibold text-gray-800 dark:text-white">{t(`roleRequests.${req.role_type}`)}</p>
                   <p className="text-xs text-gray-500">{t('roleRequests.submittedAt')}: {new Date(req.created_at).toLocaleDateString()}</p>
                   {req.rejection_reason && <p className="text-red-500 text-sm mt-1">{t('roleRequests.rejectionReason')}: {req.rejection_reason}</p>}
                 </div>

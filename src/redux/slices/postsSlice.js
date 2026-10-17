@@ -7,10 +7,25 @@ import { postsApi } from '../../services/postsApi';
 
 export const fetchPosts = createAsyncThunk(
   'posts/fetchPosts',
-  async ({ page = 1, perPage = 10, search = '' } = {}, { rejectWithValue }) => {
+  async ({ page = 1, perPage = 10, search = '' } = {}, { getState, rejectWithValue }) => {
     try {
+      const state = getState();
+      const now = Date.now();
+      const lastFetch = state.posts.lastFetch;
+
+      // ✅ إذا كان آخر جلب منذ أقل من 5 دقائق، لا نعيد الجلب
+      // (نعود بقيمة فارغة لتجنب إعادة التصيير)
+      if (lastFetch && (now - lastFetch) < 5 * 60 * 1000) {
+        return { posts: state.posts.posts, pagination: state.posts.pagination, _cached: true };
+      }
+
       const response = await postsApi.getArticles(page, perPage, search);
-      return { posts: response.data, pagination: response.meta };
+      return {
+        posts: response.data,
+        pagination: response.meta,
+        _timestamp: now,
+        _cached: false,
+      };
     } catch (err) {
       if (err.message && (err.message.includes('Unexpected token') || err.message.includes('HTML'))) {
         return rejectWithValue('الخادم غير متاح حالياً. يرجى المحاولة لاحقاً.');
@@ -287,6 +302,7 @@ const initialState = {
   category: 'all',
   pagination: { currentPage: 1, lastPage: 1, total: 0 },
   submitting: false,
+  lastFetch: null,
 
   // ✅ إضافة currentArticle لتخزين المقالة المعروضة في PostDetailPage
   currentArticle: null,
@@ -318,15 +334,23 @@ const postsSlice = createSlice({
       })
       .addCase(fetchPosts.fulfilled, (state, { payload }) => {
         state.loading = false;
-        state.posts = payload.posts.map(post => ({
-          ...post,
-          user: post.user || post.author || { name: 'مجهول', id: null, avatar: null, roles: [] }
-        }));
-        state.pagination = {
-          currentPage: payload.pagination?.current_page ?? 1,
-          lastPage: payload.pagination?.last_page ?? 1,
-          total: payload.pagination?.total ?? 0,
-        };
+        state.error = null;
+
+        // ✅ إذا كانت البيانات من Cache، لا نعدل الـ posts
+        if (payload._cached) return;
+
+        if (payload.posts) {
+          state.posts = payload.posts.map(post => ({
+            ...post,
+            user: post.user || post.author || { name: 'مجهول', id: null, avatar: null, roles: [] }
+          }));
+          state.pagination = {
+            currentPage: payload.pagination?.current_page ?? 1,
+            lastPage: payload.pagination?.last_page ?? 1,
+            total: payload.pagination?.total ?? 0,
+          };
+          state.lastFetch = payload._timestamp || Date.now();
+        }
       })
       .addCase(fetchPosts.rejected, (state, { payload }) => {
         state.loading = false;

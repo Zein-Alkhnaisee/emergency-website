@@ -1,4 +1,3 @@
-// StoreCard.jsx — explicit image dimensions, better accessibility
 import { useCallback, memo } from 'react';
 import { useDispatch } from 'react-redux';
 import { useTranslation } from 'react-i18next';
@@ -38,7 +37,7 @@ const StoreCard = memo(({ store, index }) => {
 
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
-              <h3 className="text-base font-bold text-gray-800 dark:text-white group-hover:text-primary transition truncate">
+              <h3 className="text-base font-bold text-gray-800 dark:text-white group-hover:text-[var(--color-primary)] transition truncate">
                 {store.name}
               </h3>
               {store.isVerified && (
@@ -55,13 +54,13 @@ const StoreCard = memo(({ store, index }) => {
                 <span aria-label={`تقييم ${store.rating}`}>{store.rating}</span>
               </span>
               <span className="flex items-center gap-1">
-                <FaBoxes className="text-primary/60" aria-hidden="true" />
+                <FaBoxes className="text-[var(--color-primary)]/60" aria-hidden="true" />
                 {store.productsCount} {t('marketplace.products')}
               </span>
             </div>
 
             <p className="flex items-center gap-1 text-xs text-gray-500 mt-1 truncate">
-              <FaMapMarkerAlt className="text-primary/70 shrink-0" aria-hidden="true" />
+              <FaMapMarkerAlt className="text-[var(--color-primary)]/70 shrink-0" aria-hidden="true" />
               {store.location.address}
             </p>
 
@@ -80,10 +79,11 @@ const StoreCard = memo(({ store, index }) => {
           </span>
           <Button
             text={t('marketplace.viewStore')}
-            bgColor="bg-primary hover:bg-primary/90"
+            bgColor="bg-[var(--color-primary)] hover:bg-[var(--color-primary)]/90"
             textColor="text-white"
             handler={handleSelect}
             ariaLabel={`عرض متجر ${store.name}`}
+            className="shadow-[var(--color-primary)]/20 hover:shadow-[var(--color-primary)]/40"
           />
         </div>
       </div>

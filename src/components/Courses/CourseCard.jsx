@@ -1,4 +1,3 @@
-// src/components/Courses/CourseCard.jsx
 import React, { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
@@ -9,12 +8,11 @@ import {
 import { reportCourse, addCertificate } from '../../redux/slices/coursesSlice';
 import RateCourseModal from './RateCourseModal';
 
-// ── Stars ────────────────────────────────────────────────────
 const StarRating = ({ rating }) => (
   <div className="flex items-center gap-0.5" aria-label={`تقييم ${rating} من 5 نجوم`} role="img">
     {Array.from({ length: 5 }, (_, i) =>
       i < Math.round(rating)
-        ? <FaStar key={i} className="text-yellow-400 text-xs" aria-hidden="true" />
+        ? <FaStar key={i} className="text-yellow-400 text-xs drop-shadow-sm" aria-hidden="true" />
         : <FaRegStar key={i} className="text-gray-300 dark:text-gray-600 text-xs" aria-hidden="true" />
     )}
     <span className="sr-only">{rating} من 5</span>
@@ -71,20 +69,20 @@ const CourseCard = ({ course, index, isTrusted = false }) => {
         data-aos="fade-up"
         data-aos-duration="500"
         data-aos-delay={Math.min(index * 80, 400)}
-        className="group bg-white dark:bg-gray-800 rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden border border-gray-100 dark:border-gray-700/60 hover:-translate-y-1 flex flex-col"
+        className="group bg-white dark:bg-gray-800/90 rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 dark:border-gray-700/60 hover:-translate-y-1 flex flex-col"
       >
         <div
-          className="relative bg-gradient-to-br from-primary/8 to-secondary/8 flex items-center justify-center overflow-hidden"
+          className="relative bg-gradient-to-br from-primary/10 to-secondary/10 flex items-center justify-center overflow-hidden"
           style={{ aspectRatio: '16/7' }}
         >
           <div className="flex items-center justify-center h-full w-full">
-            <div className="text-4xl text-primary/30 group-hover:text-primary/60 transition-colors">
+            <div className="text-5xl text-primary/30 group-hover:text-primary/60 transition-colors duration-300">
               📚
             </div>
           </div>
 
           {price_type === 'free' && (
-            <span className="absolute top-3 start-3 bg-emerald-500 text-white px-2.5 py-0.5 rounded-full text-xs font-bold">
+            <span className="absolute top-3 start-3 bg-emerald-500 text-white px-2.5 py-0.5 rounded-full text-xs font-bold shadow-lg">
               {t('courses.free')}
             </span>
           )}
@@ -92,7 +90,7 @@ const CourseCard = ({ course, index, isTrusted = false }) => {
           <button
             onClick={handleReport}
             aria-label={`الإبلاغ عن دورة ${title}`}
-            className="absolute top-3 end-3 bg-white/80 dark:bg-gray-900/80 p-2 rounded-full hover:bg-red-50 dark:hover:bg-red-900/30 transition shadow-sm min-w-[36px] min-h-[36px] flex items-center justify-center"
+            className="absolute top-3 end-3 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm p-2 rounded-full hover:bg-red-50 dark:hover:bg-red-900/30 transition-all duration-200 hover:scale-110 shadow-sm min-w-[36px] min-h-[36px] flex items-center justify-center"
           >
             <FaFlag className="text-red-400 text-xs" aria-hidden="true" />
           </button>
@@ -109,7 +107,7 @@ const CourseCard = ({ course, index, isTrusted = false }) => {
             </div>
           </div>
 
-          <h3 className="text-sm font-bold text-gray-800 dark:text-white mb-2 line-clamp-2 group-hover:text-primary transition-colors leading-snug">
+          <h3 className="text-sm font-bold text-gray-800 dark:text-white mb-2 line-clamp-2 group-hover:text-primary transition-colors duration-200 leading-snug">
             {title}
           </h3>
           <p className="text-gray-500 dark:text-gray-400 text-xs line-clamp-2 mb-4 leading-relaxed flex-1">
@@ -149,7 +147,7 @@ const CourseCard = ({ course, index, isTrusted = false }) => {
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label={`عرض دورة ${title} على ${provider}`}
-                className="flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary/70 transition-colors shrink-0 ms-2"
+                className="flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary/70 transition-colors duration-200 hover:scale-105 shrink-0 ms-2"
               >
                 {t('courses.viewCourse')}
                 <FaExternalLinkAlt className="text-[9px]" aria-hidden="true" />
@@ -157,7 +155,7 @@ const CourseCard = ({ course, index, isTrusted = false }) => {
               {isTrusted && (
                 <button
                   onClick={() => setShowRateModal(true)}
-                  className="text-xs bg-yellow-500 text-white px-3 py-1 rounded-full hover:bg-yellow-600 transition"
+                  className="text-xs bg-yellow-500 text-white px-3 py-1 rounded-full hover:bg-yellow-600 transition-all duration-200 hover:scale-105 hover:shadow-md"
                 >
                   {t('courses.rate')}
                 </button>
@@ -170,7 +168,7 @@ const CourseCard = ({ course, index, isTrusted = false }) => {
               <button
                 onClick={() => setShowCertUpload(v => !v)}
                 aria-expanded={showCertUpload}
-                className="text-xs text-primary hover:text-primary/70 flex items-center gap-1.5 transition-colors"
+                className="text-xs text-primary hover:text-primary/70 flex items-center gap-1.5 transition-all duration-200 hover:scale-105"
               >
                 <FaUpload className="text-[10px]" aria-hidden="true" />
                 {t('courses.uploadCertificate')}
@@ -181,7 +179,7 @@ const CourseCard = ({ course, index, isTrusted = false }) => {
                   accept="image/*"
                   onChange={handleCertUpload}
                   aria-label="اختر صورة الشهادة"
-                  className="mt-2 text-xs text-gray-500 w-full file:mr-2 file:py-1 file:px-2 file:rounded-full file:border-0 file:text-xs file:bg-primary/10 file:text-primary hover:file:bg-primary/20 cursor-pointer"
+                  className="mt-2 text-xs text-gray-500 w-full file:mr-2 file:py-1 file:px-2 file:rounded-full file:border-0 file:text-xs file:bg-primary/10 file:text-primary hover:file:bg-primary/20 cursor-pointer transition-all duration-200"
                 />
               )}
             </div>

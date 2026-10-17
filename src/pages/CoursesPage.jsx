@@ -1,4 +1,3 @@
-// src/pages/CoursesPage.jsx
 import { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
@@ -7,9 +6,10 @@ import CourseCard from '../components/Courses/CourseCard';
 import CourseFilters from '../components/Courses/CourseFilters';
 import Button from '../components/Shared/Button';
 import { fetchCourses, fetchCategories } from '../redux/slices/coursesSlice';
+import { SkeletonCourseCard } from '../components/UI/Skeleton';
 
 const EmptyState = ({ message }) => (
-  <div className="text-center py-16">
+  <div className="text-center py-16 animate-fade-up">
     <div className="text-6xl mb-4" aria-hidden="true">📚</div>
     <p className="text-gray-500 dark:text-gray-400 text-sm">{message}</p>
   </div>
@@ -33,11 +33,8 @@ const CoursesPage = () => {
     dispatch(fetchCourses({ categoryId, page, perPage: 10 }));
   }, [dispatch, category, page]);
 
-  // التصفية المحلية بناءً على الفلتر المختار
   const filteredCourses = useMemo(() => {
     let result = [...courses];
-    // لا يوجد حقول تقييم أو طلاب في الاستجابة الحالية، لذا سنعتمد الترتيب الافتراضي
-    // يمكنك إضافة ترتيب حسب popularity مستقبلاً
     return result;
   }, [courses, filter]);
 
@@ -47,8 +44,13 @@ const CoursesPage = () => {
 
   if (loading && courses.length === 0) {
     return (
-      <div className="flex justify-center py-20">
-        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      <div className="container my-10">
+        <Heading title={t('courses.title')} subtitle={t('courses.subtitle')} />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <SkeletonCourseCard key={i} />
+          ))}
+        </div>
       </div>
     );
   }
@@ -61,9 +63,10 @@ const CoursesPage = () => {
         <div className="flex justify-end mb-6">
           <Button
             text={t('courses.becomeTeacher')}
-            bgColor="bg-secondary hover:bg-secondary/90"
+            bgColor="bg-primary hover:bg-primary/90"
             textColor="text-white"
             handler={handleBecomeTeacher}
+            className="shadow-primary hover:shadow-primary-lg"
           />
         </div>
       )}
@@ -86,7 +89,10 @@ const CoursesPage = () => {
             <button
               key={p}
               onClick={() => setPage(p)}
-              className={`px-3 py-1 rounded ${page === p ? 'bg-primary text-white' : 'bg-gray-100'}`}
+              className={`px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${page === p
+                  ? 'bg-primary text-white shadow-lg shadow-primary/30 hover:shadow-primary/40'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 hover:scale-105'
+                }`}
             >
               {p}
             </button>

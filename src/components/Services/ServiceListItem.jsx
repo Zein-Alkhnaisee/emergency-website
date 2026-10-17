@@ -2,8 +2,8 @@
 import React, { memo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
-import { 
-  FaMapMarkerAlt, FaPhone, FaClock, FaDollarSign, 
+import {
+  FaMapMarkerAlt, FaPhone, FaClock, FaDollarSign,
   FaCheckCircle, FaEdit, FaTrash, FaRuler,
   FaCalendarCheck, FaStar, FaRegStar, FaStarHalfAlt
 } from 'react-icons/fa';
@@ -39,7 +39,7 @@ const ServiceListItem = memo(({ service, index, isMyService = false }) => {
     formData.append('name', editForm.name);
     formData.append('city', editForm.city);
     if (editForm.contact_phone) formData.append('contact_phone', editForm.contact_phone);
-    
+
     const result = await dispatch(updateService({ serviceId: service.id, formData }));
     if (updateService.fulfilled.match(result)) {
       showSuccess(t('services.updateSuccess'));
@@ -77,15 +77,13 @@ const ServiceListItem = memo(({ service, index, isMyService = false }) => {
       data-aos="fade-up"
       data-aos-duration="500"
       data-aos-delay={index * 50}
-      className="bg-white dark:bg-gray-800 rounded-xl shadow-md hover:shadow-lg transition-all duration-300 p-4 border border-gray-100 dark:border-gray-700"
+      className="bg-white dark:bg-gray-800 rounded-xl shadow-md hover:shadow-lg transition-all duration-300 p-4 border border-gray-100 dark:border-gray-700 hover:-translate-y-0.5"
     >
       <div className="flex flex-col md:flex-row md:items-center gap-4">
-        {/* الأيقونة */}
         <div className="text-3xl bg-primary/10 w-12 h-12 rounded-xl flex items-center justify-center shrink-0">
           🛠️
         </div>
 
-        {/* المعلومات */}
         <div className="flex-1 min-w-0">
           {isEditing ? (
             <div className="space-y-2">
@@ -93,7 +91,7 @@ const ServiceListItem = memo(({ service, index, isMyService = false }) => {
                 type="text"
                 value={editForm.name}
                 onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                className="w-full p-2 border rounded dark:bg-gray-700 text-sm"
+                className="w-full p-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent transition-all duration-200"
                 placeholder={t('services.serviceName')}
               />
               <div className="flex gap-2">
@@ -101,20 +99,20 @@ const ServiceListItem = memo(({ service, index, isMyService = false }) => {
                   type="text"
                   value={editForm.city}
                   onChange={(e) => setEditForm({ ...editForm, city: e.target.value })}
-                  className="flex-1 p-2 border rounded dark:bg-gray-700 text-sm"
+                  className="flex-1 p-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent transition-all duration-200"
                   placeholder={t('services.city')}
                 />
                 <input
                   type="tel"
                   value={editForm.contact_phone}
                   onChange={(e) => setEditForm({ ...editForm, contact_phone: e.target.value })}
-                  className="flex-1 p-2 border rounded dark:bg-gray-700 text-sm"
+                  className="flex-1 p-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent transition-all duration-200"
                   placeholder={t('services.contactPhone')}
                 />
               </div>
               <div className="flex gap-2">
                 <Button text={t('common.save')} bgColor="bg-primary" textColor="text-white" handler={handleEdit} />
-                <Button text={t('common.cancel')} bgColor="bg-gray-500" textColor="text-white" handler={() => setIsEditing(false)} />
+                <Button text={t('common.cancel')} bgColor="bg-gray-100 dark:bg-gray-700" textColor="text-gray-700 dark:text-gray-300" handler={() => setIsEditing(false)} />
               </div>
             </div>
           ) : (
@@ -152,13 +150,12 @@ const ServiceListItem = memo(({ service, index, isMyService = false }) => {
           )}
         </div>
 
-        {/* الإجراءات */}
         {isMyService && !isEditing && (
           <div className="flex gap-2">
             {service.status === 'pending' && (
               <button
                 onClick={() => setIsEditing(true)}
-                className="p-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-lg hover:bg-blue-200 transition"
+                className="p-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-all duration-200 hover:scale-105"
               >
                 <FaEdit />
               </button>
@@ -166,11 +163,28 @@ const ServiceListItem = memo(({ service, index, isMyService = false }) => {
             {(service.status === 'pending' || service.status === 'rejected') && (
               <button
                 onClick={handleDelete}
-                className="p-2 bg-red-100 dark:bg-red-900/30 text-red-600 rounded-lg hover:bg-red-200 transition"
+                className="p-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-all duration-200 hover:scale-105"
               >
                 <FaTrash />
               </button>
             )}
+          </div>
+        )}
+        {isEditing && (
+          <div className="flex gap-2">
+            <Button
+              text={t('common.save')}
+              bgColor="bg-[var(--color-primary)] hover:bg-[var(--color-primary)]/90"
+              textColor="text-white"
+              handler={handleEdit}
+              className="shadow-[var(--color-primary)]/20 hover:shadow-[var(--color-primary)]/40"
+            />
+            <Button
+              text={t('common.cancel')}
+              bgColor="bg-gray-100 dark:bg-gray-700"
+              textColor="text-gray-700 dark:text-gray-300"
+              handler={() => setIsEditing(false)}
+            />
           </div>
         )}
       </div>

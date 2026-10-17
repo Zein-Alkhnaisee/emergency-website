@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -19,6 +19,7 @@ const VerifyOTP = () => {
   useEffect(() => {
     if (!temp_token) navigate('/forgot-password');
   }, [temp_token, navigate]);
+  
 
   useEffect(() => {
     if (error) {
@@ -58,51 +59,65 @@ const VerifyOTP = () => {
   };
 
   return (
-    <div className="text-white h-screen flex items-center justify-center bg-cover" style={{ backgroundImage: `url(${import.meta.env.BASE_URL}emergency-login.png)`, backgroundAttachment:"fixed" }} dir={isRTL ? 'rtl' : 'ltr'}>
-      <div className="bg-slate-800 border border-slate-600 rounded-md p-10 shadow-lg backdrop-blur-lg bg-opacity-30 relative w-[500px]">
-        <h1 className="text-4xl font-bold text-center mb-6">{t('verify Code')}</h1>
-        <p className="text-center text-sm text-gray-300 mb-6">{t('verify Code Desc')}</p>
-        <form onSubmit={handleSubmit}>
-          <div className="relative my-6">
-            <input
-              type="text"
-              maxLength="6"
-              value={otpCode}
-              onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
-              className={`block w-full py-3 px-0 text-sm text-white bg-transparent border-0 border-b-2 border-gray-300 appearance-none focus:outline-none focus:ring-0 focus:text-white focus:border-red-400 peer text-center text-2xl tracking-widest ${otpCode ? 'filled' : ''}`}
-              placeholder=" "
-              required
-              autoFocus
-            />
-            <label className={`absolute text-sm duration-300 transform -translate -z-10 origin-[0] top-3 ${isRTL ? 'right-0 left-auto' : 'left-0 right-auto'} peer-focus:text-red-100 peer-focus:scale-75 peer-focus:-translate-y-6 ${otpCode ? 'scale-75 -translate-y-6' : 'scale-100 translate-y-0'}`}>
-              {t('code')}
-            </label>
+    <div
+      className="min-h-screen flex items-center justify-center p-4 bg-cover bg-center bg-fixed"
+      style={{ backgroundImage: `linear-gradient(135deg, rgba(15, 23, 42, 0.29), rgba(127, 29, 29, 0.30)), url(${import.meta.env.BASE_URL}emergency-login.png)` }}
+      dir={isRTL ? 'rtl' : 'ltr'}
+    >
+      <div className="w-full max-w-lg animate-slide-in-up">
+        <div className="bg-slate-800/50 backdrop-blur-xl rounded-2xl p-10 shadow-2xl border border-white/15 dark:border-gray-600/30">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-white tracking-tight">
+              {t('verify Code')}
+            </h1>
+            <p className="text-sm text-gray-300 mt-2">
+              {t('verify Code Desc')}
+            </p>
           </div>
-          <button
-            type="submit"
-            disabled={loading || otpCode.length !== 6}
-            className="w-full text-lg mt-4 rounded bg-red-500 py-2.5 hover:bg-red-600 transition-colors duration-300 disabled:opacity-50"
-          >
-            {loading ? (
-              <div className="flex items-center justify-center gap-2">
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                {t('common.loading')}
-              </div>
-            ) : t('verify')}
-          </button>
-          <div className="text-center mt-6">
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="relative">
+              <input
+                type="text"
+                maxLength="6"
+                value={otpCode}
+                onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                className="w-full px-4 py-3 bg-white/15 border border-white/20 rounded-xl text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/50 focus:border-transparent transition-all duration-200 text-center text-2xl tracking-[0.5em]"
+                placeholder="000000"
+                required
+                autoFocus
+              />
+            </div>
+
             <button
-              type="button"
-              onClick={handleResend}
-              disabled={countdown > 0}
-              className="text-red-200 hover:text-red-100 hover:underline text-sm disabled:opacity-50 transition"
+              type="submit"
+              disabled={loading || otpCode.length !== 6}
+              className="w-full py-3.5 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary)]/90 text-white font-medium transition-all duration-200 hover:shadow-lg hover:shadow-[var(--color-primary)]/30 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              {countdown > 0
-                ? `${t('resendIn')} ${countdown} ${t('common.seconds')}`
-                : t('resendCode')}
+              {loading ? (
+                <>
+                  <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  {t('common.loading')}
+                </>
+              ) : (
+                t('verify')
+              )}
             </button>
-          </div>
-        </form>
+
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={handleResend}
+                disabled={countdown > 0}
+                className="text-white hover:text-[var(--color-primary)] transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {countdown > 0
+                  ? `${t('resendIn')} ${countdown} ${t('common.seconds')}`
+                  : t('resendCode')}
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
       {toast && <Toast key={toastKey} message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </div>

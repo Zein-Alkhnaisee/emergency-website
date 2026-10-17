@@ -1,4 +1,3 @@
-// src/pages/PostDetailPage.jsx
 import { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useParams, Link } from 'react-router-dom';
@@ -33,7 +32,7 @@ const PostDetailPage = () => {
     return (
       <div className="container mx-auto p-4 text-center">
         <p className="text-red-500">{error}</p>
-        <Link to="/" className="text-primary hover:underline">
+        <Link to="/" className="text-primary hover:text-primary/80 transition-colors">
           {t('common.back')}
         </Link>
       </div>
@@ -44,7 +43,7 @@ const PostDetailPage = () => {
     return (
       <div className="container mx-auto p-4 text-center">
         <p className="text-gray-500">{t('posts.notFound')}</p>
-        <Link to="/" className="text-primary hover:underline">
+        <Link to="/" className="text-primary hover:text-primary/80 transition-colors">
           {t('common.back')}
         </Link>
       </div>
@@ -52,10 +51,10 @@ const PostDetailPage = () => {
   }
 
   return (
-    <div className="container mx-auto p-4 max-w-3xl">
+    <div className="container mx-auto p-4 max-w-3xl animate-fade-up">
       <Link
         to="/"
-        className="inline-flex items-center gap-2 text-primary hover:underline mb-4"
+        className="inline-flex items-center gap-2 text-primary hover:text-primary/80 transition-colors mb-4"
       >
         <FaArrowRight /> {t('common.back')}
       </Link>

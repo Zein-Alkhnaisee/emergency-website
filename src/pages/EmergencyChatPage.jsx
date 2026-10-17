@@ -1,6 +1,10 @@
+// EmergencyChatPage.jsx (النسخة الكاملة المصححة)
 import { useEffect, useState, useRef, useCallback, useMemo, memo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
+import { useMediaQuery } from 'react-responsive';
+import ReportModal from '../components/Reports/ReportModal';
+import { useLanguage } from '../contexts/LanguageContext';
 import {
   listChats,
   fetchMessages,
@@ -21,9 +25,9 @@ import {
 import { initEcho, subscribeToGroupChat } from '../services/echo';
 import { showError } from '../utils/toastHelpers';
 import Heading from '../components/Shared/Heading';
-import { FaPaperPlane, FaHome, FaUsers, FaChevronDown, FaUserCircle, FaPaperclip, FaSpinner, FaStar } from 'react-icons/fa';
+import { FaPaperPlane, FaHome, FaUsers, FaChevronDown, FaUserCircle, FaPaperclip, FaSpinner, FaStar, FaTimes, FaFlag } from 'react-icons/fa';
 import RateUserModal from '../components/Ratings/RateUserModal';
-
+import { formatMessageTime, formatRelativeTime } from '../utils/dateHelpers';
 
 const CONTEXT = 'home';
 const TYPING_THROTTLE_MS = 800;
@@ -31,39 +35,31 @@ const PRESENCE_INTERVAL_MS = 30_000;
 const TYPING_SWEEP_MS = 1500;
 const MESSAGES_PER_PAGE = 30;
 
-// ── Relative "last seen" formatter ──────────────────────────────
 const formatLastSeen = (iso) => {
   if (!iso) return null;
-  const date = new Date(iso + 'Z');
-  const diffMin = Math.floor((Date.now() - date.getTime()) / 60000);
-  if (diffMin < 1) return 'الآن';
-  if (diffMin < 60) return `قبل ${diffMin} د`;
-  if (diffMin < 1440) return `قبل ${Math.floor(diffMin / 60)} س`;
-  return date.toLocaleDateString('ar-EG', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  return formatRelativeTime(iso);
 };
 
 // ── Avatar ──────────────────────────────────────────────────────
 const Avatar = memo(({ name, src, isOnline, size = 9 }) => {
-  const dim = `w-${size} h-${size}`;
+  const sizeClass = `w-${size} h-${size}`;
   return (
-    <div className="relative shrink-0">
+    <div className="relative shrink-0 transition-transform duration-200 hover:scale-105">
       {src ? (
         <img
           src={src}
           alt={name}
-          width={size * 4}
-          height={size * 4}
-          className={`${dim} rounded-full object-cover ring-2 ring-white dark:ring-gray-800`}
+          className={`${sizeClass} rounded-full object-cover ring-2 ring-white dark:ring-gray-800 shadow-sm`}
           loading="lazy"
         />
       ) : (
-        <div className={`${dim} rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center text-primary font-bold ring-2 ring-white dark:ring-gray-800`}>
-          {name?.charAt(0)?.toUpperCase() || <FaUserCircle />}
+        <div className={`${sizeClass} rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center text-primary font-bold ring-2 ring-white dark:ring-gray-800 shadow-sm`}>
+          {name?.charAt(0)?.toUpperCase() || <FaUserCircle className="w-full h-full p-1" />}
         </div>
       )}
       {isOnline && (
         <span
-          className="absolute -bottom-0.5 -end-0.5 w-2.5 h-2.5 rounded-full bg-green-500 border-2 border-white dark:border-gray-800"
+          className="absolute -bottom-0.5 -end-0.5 w-2.5 h-2.5 rounded-full bg-green-500 border-2 border-white dark:border-gray-800 shadow-sm"
           title="متصل الآن"
         />
       )}
@@ -73,61 +69,107 @@ const Avatar = memo(({ name, src, isOnline, size = 9 }) => {
 Avatar.displayName = 'Avatar';
 
 // ── Message bubble ──────────────────────────────────────────────
+// ── Message bubble (معدل مع زر إبلاغ محسّن) ──
 const MessageBubble = memo(({ msg, isOwn }) => {
   const { t } = useTranslation();
+  const { currentLang } = useLanguage(); // ✅ لجلب اتجاه اللغة
   const hasAttachment = msg.attachment?.url || msg.attachment_url;
+  const [showReportModal, setShowReportModal] = useState(false);
+
+  const isRTL = currentLang === 'ar';
+  const canReport = !isOwn && msg.sender?.id;
 
   return (
-    <div className={`flex items-end gap-2 animate-fade-up ${isOwn ? 'justify-end' : 'justify-start'}`}>
-      {!isOwn && (
-        <Avatar
-          name={msg.sender?.name}
-          src={msg.sender?.avatar}
-          isOnline={msg.sender?.is_online}
-          size={7}
-        />
-      )}
-      <div className={`
-        max-w-[75%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed shadow-sm
-        ${isOwn
-          ? 'bg-primary text-white rounded-br-sm'
-          : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 rounded-bl-sm'
-        }
-      `}>
-        {!isOwn && msg.sender?.name && (
-          <p className="text-[10px] font-semibold text-primary/80 dark:text-primary/60 mb-1">
-            {msg.sender.name}
-          </p>
+    <>
+      <div className={`flex items-end gap-2 animate-fade-up ${isOwn ? 'justify-end' : 'justify-start'} group relative`}>
+        {/* ✅ زر الإبلاغ - يظهر عند hover على الرسالة، ويوضع على يسارها (أو يمينها) */}
+        {canReport && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowReportModal(true);
+            }}
+            className={`
+              opacity-0 group-hover:opacity-100 transition-all duration-200
+              flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg
+              bg-red-50 hover:bg-red-100 dark:bg-red-900/30 dark:hover:bg-red-900/50
+              text-red-600 dark:text-red-400 text-xs font-medium
+              hover:scale-105 active:scale-95
+              shadow-sm hover:shadow-md
+              ${isRTL ? 'ml-2' : 'mr-2'}
+            `}
+            title={t('reports.reportSpamMessage')}
+          >
+            <FaFlag className="text-xs" />
+            {t('reports.report')}
+          </button>
         )}
 
-        {hasAttachment && (
-          <div className="mb-2">
-            <img
-              src={msg.attachment?.url || msg.attachment_url}
-              alt={t('emergency.attachment')}
-              className="max-w-full max-h-48 rounded-lg object-cover cursor-pointer hover:opacity-90 transition"
-              loading="lazy"
-              onClick={() => window.open(msg.attachment?.url || msg.attachment_url, '_blank')}
-            />
-          </div>
+        {/* صورة المستخدم (للمرسل) */}
+        {!isOwn && (
+          <Avatar
+            name={msg.sender?.name}
+            src={msg.sender?.avatar}
+            isOnline={msg.sender?.is_online}
+            size={7}
+          />
         )}
 
-        {msg.content && (
-          <p className="whitespace-pre-wrap break-words">{msg.content}</p>
-        )}
-
-        <div className={`flex items-center gap-1.5 mt-1 justify-end ${isOwn ? 'text-white/60' : 'text-gray-400'}`}>
-          <span className="text-[10px]">
-            {new Date(msg.sent_at || msg.created_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}
-          </span>
-          {isOwn && msg.read_receipt && (
-            <span className="text-[10px]" title={t('emergency.readReceipt')}>
-              {msg.read_receipt.read_count >= msg.read_receipt.recipient_count ? '✓✓' : '✓'}
-            </span>
+        {/* فقاعة الرسالة */}
+        <div className={`
+          max-w-[75%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed shadow-sm
+          ${isOwn
+            ? 'bg-primary text-white rounded-br-sm'
+            : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 rounded-bl-sm'
+          }
+          transition-all duration-200 hover:shadow-md
+        `}>
+          {!isOwn && msg.sender?.name && (
+            <p className="text-[10px] font-semibold text-primary/80 dark:text-primary/60 mb-1">
+              {msg.sender.name}
+            </p>
           )}
+
+          {hasAttachment && (
+            <div className="mb-2">
+              <img
+                src={msg.attachment?.url || msg.attachment_url}
+                alt={t('emergency.attachment')}
+                className="max-w-full max-h-48 rounded-lg object-cover cursor-pointer hover:opacity-90 transition-opacity duration-200"
+                loading="lazy"
+                onClick={() => window.open(msg.attachment?.url || msg.attachment_url, '_blank')}
+              />
+            </div>
+          )}
+
+          {msg.content && (
+            <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+          )}
+
+          <div className={`flex items-center gap-1.5 mt-1 justify-end ${isOwn ? 'text-white/60' : 'text-gray-400'}`}>
+            <span className="text-[10px]">
+              {formatMessageTime(msg.sent_at || msg.created_at)}
+            </span>
+            {isOwn && msg.read_receipt && (
+              <span className="text-[10px]" title={t('emergency.readReceipt')}>
+                {msg.read_receipt.read_count >= msg.read_receipt.recipient_count ? '✓✓' : '✓'}
+              </span>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* مودال الإبلاغ */}
+      {canReport && (
+        <ReportModal
+          isOpen={showReportModal}
+          onClose={() => setShowReportModal(false)}
+          reportedId={msg.sender.id}
+          reportedName={msg.sender.name}
+          messageId={msg.id}
+        />
+      )}
+    </>
   );
 });
 MessageBubble.displayName = 'MessageBubble';
@@ -153,55 +195,70 @@ const TypingIndicator = memo(({ names }) => {
 });
 TypingIndicator.displayName = 'TypingIndicator';
 
-// ── Member item ──────────────────────────────────────────────────
+// ── Member item (معدل مع زر الإبلاغ) ──────────────────────────
 const MemberItem = memo(({ member, groupId, currentUserId, isTrusted }) => {
   const { t } = useTranslation();
   const [showRateModal, setShowRateModal] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
 
-  // ✅ دعم حقول متعددة للمعرف
   const userId = member?.id || member?.user_id || member?.userId;
   const displayName = member?.name || member?.display_name || t('emergency.unknown');
   const avatar = member?.avatar || member?.profile_photo_url;
+  const isOnline = member?.is_online ?? false;
+  const lastSeenAt = member?.last_seen_at;
 
-  const lastSeenLabel = member?.is_online
-    ? t('emergency.onlineNow')
-    : (member?.last_seen_at ? formatLastSeen(member.last_seen_at) : t('emergency.unavailable'));
+  let lastSeenLabel = t('emergency.unavailable');
+  if (isOnline) {
+    lastSeenLabel = t('emergency.onlineNow');
+  } else if (lastSeenAt) {
+    const formatted = formatLastSeen(lastSeenAt);
+    if (formatted) lastSeenLabel = formatted;
+  }
 
-  // لا يمكن تقييم النفس
   const canRate = isTrusted && currentUserId && userId && userId !== currentUserId;
 
   return (
     <>
-      <li className="flex items-center gap-2.5 py-2 px-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group">
-        <Avatar name={displayName} src={avatar} isOnline={member?.is_online} size={9} />
+      <li className="flex items-center gap-3 py-2 px-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all duration-200 group cursor-default">
+        <Avatar name={displayName} src={avatar} isOnline={isOnline} size={10} />
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{displayName}</p>
-          <div className="flex items-center gap-1.5 flex-wrap">
+          <p className="text-sm font-medium text-gray-800 dark:text-white truncate">{displayName}</p>
+          <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
             {member?.roles?.includes('rescuer') && (
               <span className="text-[10px] bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full">
                 {t('emergency.rescuerBadge')}
               </span>
             )}
-            {lastSeenLabel && (
-              <span className={`text-[10px] ${member?.is_online ? 'text-green-500 font-medium' : 'text-gray-400'}`}>
-                {lastSeenLabel}
-              </span>
-            )}
+            <span className={`text-[10px] ${isOnline ? 'text-green-500 font-medium' : 'text-gray-400'}`}>
+              {lastSeenLabel}
+            </span>
           </div>
         </div>
-        {/* زر التقييم - يظهر فقط للمستخدمين الموثقين (trusted) وليس للنفس */}
-        {canRate && userId && (
-          <button
-            onClick={() => setShowRateModal(true)}
-            className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-primary text-xs flex items-center gap-1"
-            title={t('ratings.rateUser', { name: displayName })}
-          >
-            <FaStar className="text-[10px]" /> {t('ratings.rate')}
-          </button>
-        )}
+
+        {/* ✅ أزرار التقييم والإبلاغ */}
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200">
+          {canRate && userId && (
+            <button
+              onClick={() => setShowRateModal(true)}
+              className="text-gray-400 hover:text-primary text-xs flex items-center gap-1 hover:scale-110 transition-all duration-200"
+              title={t('ratings.rateUser', { name: displayName })}
+            >
+              <FaStar className="text-[10px]" /> {t('ratings.rate')}
+            </button>
+          )}
+          {canRate && userId && (
+            <button
+              onClick={() => setShowReportModal(true)}
+              className="opacity-0 group-hover:opacity-100 transition-all duration-200 text-red-400 hover:text-red-600 text-xs flex items-center gap-1 hover:scale-110 px-2 py-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
+              title={t('reports.report')}
+            >
+              <FaFlag className="text-[10px]" />
+              <span className="text-[10px] font-medium">{t('reports.report')}</span>
+            </button>
+          )}
+        </div>
       </li>
 
-      {/* مودال التقييم */}
       {canRate && userId && (
         <RateUserModal
           isOpen={showRateModal}
@@ -211,18 +268,80 @@ const MemberItem = memo(({ member, groupId, currentUserId, isTrusted }) => {
           groupId={groupId}
         />
       )}
+
+      {canRate && userId && (
+        <ReportModal
+          isOpen={showReportModal}
+          onClose={() => setShowReportModal(false)}
+          reportedId={userId}
+          reportedName={displayName}
+        />
+      )}
     </>
   );
 });
 MemberItem.displayName = 'MemberItem';
 
+// ── Members Modal ───────────────────────────────────────────
+const MembersModal = memo(({ isOpen, onClose, members, groupId, currentUserId, isTrusted, t }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in" onClick={onClose}>
+      <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-md max-h-[80vh] flex flex-col shadow-2xl border border-white/10 dark:border-gray-700/50 animate-slide-in-up" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-700">
+          <h3 className="font-semibold text-gray-800 dark:text-white">
+            {t('emergency.members')} <span className="text-primary text-sm">({members.length})</span>
+          </h3>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            aria-label="إغلاق"
+          >
+            <FaTimes className="text-gray-500" />
+          </button>
+        </div>
+        <ul className="flex-1 overflow-y-auto p-3 space-y-0.5 custom-scrollbar">
+          {members.length === 0 ? (
+            <li className="text-center text-sm text-gray-400 py-8">{t('emergency.noMembers')}</li>
+          ) : (
+            members
+              .slice()
+              .sort((a, b) => (b.is_online ? 1 : 0) - (a.is_online ? 1 : 0))
+              .map(member => (
+                <MemberItem
+                  key={member.id || `member-${Math.random()}`}
+                  member={member}
+                  groupId={groupId}
+                  currentUserId={currentUserId}
+                  isTrusted={isTrusted}
+                />
+              ))
+          )}
+        </ul>
+        <div className="px-5 py-3 border-t border-gray-100 dark:border-gray-700">
+          <button
+            onClick={onClose}
+            className="w-full py-2 text-sm font-medium bg-gray-100 dark:bg-gray-700 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+          >
+            {t('common.close')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+});
+MembersModal.displayName = 'MembersModal';
+
 // ── Main component ──────────────────────────────────────────────
 const EmergencyChatPage = () => {
   const { t } = useTranslation();
   const dispatch = useDispatch();
+  const isMobile = useMediaQuery({ query: '(max-width: 767px)' });
 
   const [messageText, setMessageText] = useState('');
-  const [showMembers, setShowMembers] = useState(true);
+  const [showMembers, setShowMembers] = useState(!isMobile);
+  const [membersModalOpen, setMembersModalOpen] = useState(false);
   const [atBottom, setAtBottom] = useState(true);
   const [attachmentFile, setAttachmentFile] = useState(null);
   const [attachmentPreview, setAttachmentPreview] = useState(null);
@@ -255,12 +374,10 @@ const EmergencyChatPage = () => {
       .map(([, e]) => e.name);
   }, [typingByContext, currentUser?.id]);
 
-  // ── Bootstrap ──────────────────────────────────────────────────
   useEffect(() => {
     dispatch(listChats());
   }, [dispatch]);
 
-  // ── جلب أحدث صفحة من الرسائل ─────────────────────────────────
   useEffect(() => {
     dispatch(fetchMessages({ context: CONTEXT, perPage: MESSAGES_PER_PAGE, page: 1 }))
       .then((result) => {
@@ -274,7 +391,6 @@ const EmergencyChatPage = () => {
     dispatch(fetchHomeGroupMembers());
   }, [dispatch]);
 
-  // ── تحميل المزيد من الرسائل (الأقدم) ───────────────────────
   const handleLoadMore = useCallback(async () => {
     if (loadingMore || current_page <= 1) return;
     const nextPage = current_page - 1;
@@ -287,7 +403,6 @@ const EmergencyChatPage = () => {
     setLoadingMore(false);
   }, [dispatch, current_page, loadingMore]);
 
-  // ── Realtime subscription ───────────────────────────────────
   useEffect(() => {
     if (!token || !groupId) return;
     initEcho(token);
@@ -302,26 +417,22 @@ const EmergencyChatPage = () => {
     return unsubscribe;
   }, [dispatch, token, groupId]);
 
-  // ── Sweep typing ─────────────────────────────────────────────
   useEffect(() => {
     const id = setInterval(() => dispatch(pruneStaleTyping()), TYPING_SWEEP_MS);
     return () => clearInterval(id);
   }, [dispatch]);
 
-  // ── Presence heartbeat ──────────────────────────────────────
   useEffect(() => {
     dispatch(sendPresence({ context: CONTEXT }));
     const id = setInterval(() => dispatch(sendPresence({ context: CONTEXT })), PRESENCE_INTERVAL_MS);
     return () => clearInterval(id);
   }, [dispatch]);
 
-  // ── جلب الأعضاء بشكل دوري ──────────────────────────────────
   useEffect(() => {
     const id = setInterval(() => dispatch(fetchHomeGroupMembers()), 30000);
     return () => clearInterval(id);
   }, [dispatch]);
 
-  // ── Mark read ────────────────────────────────────────────────
   useEffect(() => {
     if (!messages.length) return;
     const unread = messages
@@ -331,7 +442,6 @@ const EmergencyChatPage = () => {
     if (unread.length) dispatch(markRead({ context: CONTEXT, messageIds: unread }));
   }, [messages.length, currentUser?.id, dispatch]);
 
-  // ── Auto-scroll ──────────────────────────────────────────────
   useEffect(() => {
     if (atBottom) messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, atBottom]);
@@ -342,7 +452,6 @@ const EmergencyChatPage = () => {
     setAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight < 60);
   }, []);
 
-  // ── Typing ──────────────────────────────────────────────────
   const emitTypingStart = useCallback(() => {
     if (isTypingRef.current) return;
     isTypingRef.current = true;
@@ -364,7 +473,6 @@ const EmergencyChatPage = () => {
 
   useEffect(() => () => clearTimeout(typingTimeoutRef.current), []);
 
-  // ── File attachment ─────────────────────────────────────────
   const handleFileSelect = useCallback((e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -387,7 +495,6 @@ const EmergencyChatPage = () => {
     setAttachmentPreview(null);
   }, []);
 
-  // ── Send ──────────────────────────────────────────────────────
   const handleSend = useCallback(async () => {
     const text = messageText.trim();
     if (!text && !attachmentFile) {
@@ -448,17 +555,26 @@ const EmergencyChatPage = () => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
   }, [handleSend]);
 
-  // ── Render ────────────────────────────────────────────────────
+  const toggleMembers = useCallback(() => {
+    if (isMobile) {
+      setMembersModalOpen(true);
+    } else {
+      setShowMembers(v => !v);
+    }
+  }, [isMobile]);
+
+  const closeMembersModal = useCallback(() => setMembersModalOpen(false), []);
+
   return (
     <div className="container mx-auto px-4 py-6 max-w-6xl">
       <div className="flex items-start justify-between mb-5 flex-wrap gap-3">
         <Heading title={t('emergency.chatTitle')} subtitle={t('emergency.chatSubtitle')} />
         <button
-          onClick={() => setShowMembers(v => !v)}
-          className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-xl text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+          onClick={toggleMembers}
+          className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-xl text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-all duration-200 hover:shadow-md active:scale-[0.98]"
         >
           <FaUsers className="text-primary" />
-          {showMembers ? t('emergency.hideMembers') : `${t('emergency.members')} (${members.length})`}
+          {isMobile ? t('emergency.viewGroupMembers') : (showMembers ? t('emergency.hideMembers') : `${t('emergency.members')} (${members.length})`)}
         </button>
       </div>
 
@@ -468,9 +584,8 @@ const EmergencyChatPage = () => {
         </div>
       )}
 
-      <div className="flex gap-5">
-        {/* ── منطقة الدردشة ── */}
-        <div className="flex-1 bg-white dark:bg-gray-800 rounded-2xl shadow-md flex flex-col overflow-hidden transition-shadow hover:shadow-lg"
+      <div className="flex flex-col md:flex-row gap-5">
+        <div className="flex-1 bg-white dark:bg-gray-800 rounded-2xl shadow-md flex flex-col overflow-hidden transition-shadow duration-300 hover:shadow-xl"
           style={{ height: '600px' }}>
 
           <div className="flex items-center gap-2 px-4 py-2.5 border-b border-gray-100 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-900/30 text-xs text-gray-500">
@@ -487,7 +602,7 @@ const EmergencyChatPage = () => {
                 <button
                   onClick={handleLoadMore}
                   disabled={loadingMore}
-                  className="px-4 py-2 text-xs font-medium text-primary bg-primary/10 rounded-full hover:bg-primary/20 transition disabled:opacity-50"
+                  className="px-4 py-2 text-xs font-medium text-primary bg-primary/10 rounded-full hover:bg-primary/20 transition-all duration-200 hover:scale-105 disabled:opacity-50"
                 >
                   {loadingMore ? (
                     <><FaSpinner className="animate-spin inline mr-2" /> {t('common.loading')}...</>
@@ -526,24 +641,24 @@ const EmergencyChatPage = () => {
           {!atBottom && (
             <button
               onClick={() => { setAtBottom(true); messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }}
-              className="mx-4 mb-1 flex items-center justify-center gap-1 text-xs text-primary bg-primary/10 py-1.5 rounded-lg hover:bg-primary/20 transition animate-fade-in"
+              className="mx-4 mb-1 flex items-center justify-center gap-1 text-xs text-primary bg-primary/10 py-1.5 rounded-lg hover:bg-primary/20 transition-all duration-200 animate-fade-in hover:scale-105"
             >
               <FaChevronDown className="text-[10px]" /> {t('emergency.newMessages')}
             </button>
           )}
 
           {homeChat && (
-            <div className="p-3 border-t border-gray-100 dark:border-gray-700">
+            <div className="p-3 border-t border-gray-100 dark:border-gray-700 bg-gray-50/30 dark:bg-gray-900/20">
               {attachmentPreview && (
-                <div className="relative mb-2 inline-block">
+                <div className="relative mb-2 inline-block animate-fade-up">
                   <img
                     src={attachmentPreview}
                     alt={t('emergency.attachmentPreview')}
-                    className="max-h-24 rounded-lg object-cover border border-gray-200 dark:border-gray-600"
+                    className="max-h-24 rounded-lg object-cover border border-gray-200 dark:border-gray-600 shadow-sm"
                   />
                   <button
                     onClick={clearAttachment}
-                    className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white hover:bg-red-600 transition flex items-center justify-center text-xs"
+                    className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white hover:bg-red-600 transition-all duration-200 hover:scale-110 flex items-center justify-center text-xs shadow-md"
                   >
                     ✕
                   </button>
@@ -553,7 +668,7 @@ const EmergencyChatPage = () => {
               <div className="flex gap-2 items-end">
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="w-11 h-11 flex items-center justify-center rounded-xl text-gray-400 hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-700 transition shrink-0"
+                  className="w-11 h-11 flex items-center justify-center rounded-xl text-gray-400 hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 hover:scale-105 shrink-0"
                   aria-label={t('emergency.attachImage')}
                 >
                   <FaPaperclip className="text-lg" />
@@ -574,14 +689,14 @@ const EmergencyChatPage = () => {
                   onKeyDown={handleKeyDown}
                   placeholder={attachmentFile ? t('emergency.addTextWithImage') : t('emergency.typeMessage')}
                   rows={1}
-                  className="flex-1 px-4 py-2.5 text-sm rounded-xl resize-none bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all duration-150 max-h-28"
+                  className="flex-1 px-4 py-2.5 text-sm rounded-xl resize-none bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent transition-all duration-200 max-h-28"
                   style={{ overflowY: 'auto' }}
                 />
 
                 <button
                   onClick={handleSend}
                   disabled={sending || (!messageText.trim() && !attachmentFile)}
-                  className="w-11 h-11 flex items-center justify-center rounded-xl bg-primary text-white hover:bg-primary/90 active:scale-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150 shrink-0"
+                  className="w-11 h-11 flex items-center justify-center rounded-xl bg-primary text-white hover:bg-primary/90 active:scale-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-lg hover:shadow-primary/30 shrink-0"
                 >
                   {sending
                     ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -591,7 +706,7 @@ const EmergencyChatPage = () => {
               </div>
 
               {attachmentFile && (
-                <p className="text-xs text-primary mt-1.5">
+                <p className="text-xs text-primary mt-1.5 animate-fade-up">
                   ✅ {attachmentFile.name} ({(attachmentFile.size / 1024).toFixed(1)} KB)
                 </p>
               )}
@@ -599,10 +714,10 @@ const EmergencyChatPage = () => {
           )}
         </div>
 
-        {/* ── القائمة الجانبية للأعضاء ── */}
-        {showMembers && (
+        {/* ── قائمة الأعضاء (للكبيرة فقط) ── */}
+        {!isMobile && showMembers && (
           <div
-            className="w-72 bg-white dark:bg-gray-800 rounded-2xl shadow-md overflow-hidden flex flex-col animate-slide-in-down shrink-0"
+            className="w-full md:w-72 bg-white dark:bg-gray-800 rounded-2xl shadow-md overflow-hidden flex flex-col shrink-0 transition-shadow duration-300 hover:shadow-xl"
             style={{ height: '600px' }}
           >
             <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-900/30">
@@ -634,6 +749,17 @@ const EmergencyChatPage = () => {
           </div>
         )}
       </div>
+
+      {/* ── مودال الأعضاء (للموبايل) ── */}
+      <MembersModal
+        isOpen={membersModalOpen}
+        onClose={closeMembersModal}
+        members={members}
+        groupId={groupId}
+        currentUserId={currentUser?.id}
+        isTrusted={isTrusted}
+        t={t}
+      />
     </div>
   );
 };

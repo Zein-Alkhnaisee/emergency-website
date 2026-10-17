@@ -1,28 +1,26 @@
 import { lazy, Suspense, useState, useEffect, useRef, memo } from 'react';
 import Hero from '../components/Hero/Hero';
+import Footer from '../components/Layout/Footer';
+import { SkeletonPostsList, SkeletonServicesGrid } from '../components/UI/Skeleton';
 
 // الصفحات الثقيلة — lazy loaded
-const EmergencyPage   = lazy(() => import('./EmergencyPage'));
-const PostsPage       = lazy(() => import('./PostsPage'));
-const CoursesPage     = lazy(() => import('./CoursesPage'));
-const ServicesPage    = lazy(() => import('./ServicesPage'));
+const EmergencyPage = lazy(() => import('./EmergencyPage'));
+const PostsPage = lazy(() => import('./PostsPage'));
+const CoursesPage = lazy(() => import('./CoursesPage'));
+const ServicesPage = lazy(() => import('./ServicesPage'));
 const MarketplacePage = lazy(() => import('./MarketplacePage'));
 
-// ── Skeleton placeholder ───────────────────────────────────────
-const SectionSkeleton = memo(({ label }) => (
-  <div
-    role="status"
-    aria-label={`جاري تحميل ${label}`}
-    className="min-h-96 flex flex-col items-center justify-center gap-3 text-gray-400"
-  >
-    <div className="w-8 h-8 border-2 border-gray-300 border-t-primary rounded-full animate-spin" />
-    <span className="text-sm animate-pulse">{label}</span>
-  </div>
-));
+// ── Skeleton placeholder محسّن للجوال ──
+const SectionSkeleton = memo(({ type = 'posts' }) => {
+  if (type === 'posts') {
+    return <SkeletonPostsList count={3} />;
+  }
+  return <SkeletonServicesGrid count={3} />;
+});
 SectionSkeleton.displayName = 'SectionSkeleton';
 
-// ── Lazy section with IntersectionObserver ─────────────────────
-const LazySection = memo(({ children, id, fallbackLabel }) => {
+// ── Lazy section with IntersectionObserver ──
+const LazySection = memo(({ children, id, fallbackLabel, type = 'posts' }) => {
   const [isVisible, setIsVisible] = useState(false);
   const ref = useRef(null);
 
@@ -30,7 +28,6 @@ const LazySection = memo(({ children, id, fallbackLabel }) => {
     const el = ref.current;
     if (!el) return;
 
-    // 400px قبل الوصول → يبدأ التحميل مبكراً لتحسين LCP
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
@@ -38,7 +35,7 @@ const LazySection = memo(({ children, id, fallbackLabel }) => {
           observer.disconnect();
         }
       },
-      { rootMargin: '400px' }
+      { rootMargin: '200px' } // ✅ تقليل الـ rootMargin للجوال
     );
 
     observer.observe(el);
@@ -46,54 +43,47 @@ const LazySection = memo(({ children, id, fallbackLabel }) => {
   }, []);
 
   return (
-    <section id={id} ref={ref} aria-label={fallbackLabel}>
-      {isVisible
-        ? (
-          <Suspense fallback={<SectionSkeleton label={fallbackLabel} />}>
-            {children}
-          </Suspense>
-        )
-        : (
-          // placeholder بأبعاد ثابتة يمنع CLS عند التحميل
-          <div
-            className="min-h-96"
-            aria-hidden="true"
-            style={{ contain: 'layout' }}
-          />
-        )
-      }
+    <section id={id} ref={ref} aria-label={fallbackLabel} className="scroll-mt-16">
+      {isVisible ? (
+        <Suspense fallback={<SectionSkeleton type={type} />}>
+          {children}
+        </Suspense>
+      ) : (
+        <div className="min-h-[200px] sm:min-h-[300px]" aria-hidden="true" style={{ contain: 'layout' }} />
+      )}
     </section>
   );
 });
 LazySection.displayName = 'LazySection';
 
-// ── Page ───────────────────────────────────────────────────────
+// ── Page ──
 const HomePage = () => (
   <main>
-    {/* Hero — يُحمَّل فوراً (LCP element) */}
     <section id="home">
       <Hero />
     </section>
 
-    <LazySection id="emergency" fallbackLabel="الطوارئ">
+    <LazySection id="emergency" fallbackLabel="الطوارئ" type="emergency">
       <EmergencyPage />
     </LazySection>
 
-    <LazySection id="posts" fallbackLabel="المنشورات">
+    <LazySection id="posts" fallbackLabel="المنشورات" type="posts">
       <PostsPage />
     </LazySection>
 
-    <LazySection id="courses" fallbackLabel="الكورسات">
+    <LazySection id="courses" fallbackLabel="الكورسات" type="courses">
       <CoursesPage />
     </LazySection>
 
-    <LazySection id="services" fallbackLabel="الخدمات">
+    <LazySection id="services" fallbackLabel="الخدمات" type="services">
       <ServicesPage />
     </LazySection>
 
-    <LazySection id="marketplace" fallbackLabel="المتجر">
+    <LazySection id="marketplace" fallbackLabel="المتجر" type="marketplace">
       <MarketplacePage />
     </LazySection>
+
+    <Footer />
   </main>
 );
 

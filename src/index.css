@@ -1,13 +1,62 @@
+/* ── تحميل الخطوط من Google Fonts ── */
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap');
+
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* ── تحميل الخطوط من Google Fonts ── */
-@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap');
+/* ============================================
+   🌓 1. DESIGN SYSTEM VARIABLES (CSS Custom Properties)
+   ============================================ */
+:root {
+  /* ── الألوان الأساسية (يتم التحكم بها عبر ThemeContext) ── */
+  --color-primary: #ef4444;
+  --color-primary-dark: #dc2626;
+  --color-primary-light: #f87171;
+  --color-primary-rgb: 239, 68, 68;
+
+  /* ── الألوان الثانوية والمساعدة ── */
+  --color-secondary: #3b82f6;
+  --color-accent: #8b5cf6;
+  --color-surface: #ffffff;
+  --color-surface-dark: #1e293b;
+  --color-text: #0f172a;
+  --color-text-light: #64748b;
+  --color-border: #e2e8f0;
+
+  /* ── الظلال ── */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.12);
+  --shadow-xl: 0 20px 60px rgba(0, 0, 0, 0.18);
+
+  /* ── الأنصاف ── */
+  --radius-sm: 0.5rem;
+  --radius-md: 1rem;
+  --radius-lg: 1.5rem;
+  --radius-xl: 2rem;
+
+  /* ── الانتقالات ── */
+  --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── الوضع المظلم (عبر Tailwind `dark` class) ── */
+.dark {
+  --color-surface: #1e293b;
+  --color-border: #334155;
+  --color-text-light: #94a3b8;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
 
 @layer base {
+
   /* منع layout shift */
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     box-sizing: border-box;
   }
 
@@ -16,31 +65,51 @@
     scroll-behavior: smooth;
   }
 
-  html[dir="rtl"] { direction: rtl; }
-  html[dir="ltr"] { direction: ltr; }
+  html[dir="rtl"] {
+    direction: rtl;
+  }
+
+  html[dir="ltr"] {
+    direction: ltr;
+  }
 
   body {
-    /* ✅ استخدام Cairo كخط أساسي (يدعم العربية واللاتينية معاً) مع Poppins كاحتياطي للإنجليزية */
+    /* ✅ Cairo للعربية، Poppins للإنجليزية */
     font-family: 'Cairo', 'Poppins', system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow-y: scroll;
+    background-color: #f8fafc;
+    color: #0f172a;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  .dark body {
+    background-color: #0f172a;
+    color: #f1f5f9;
   }
 
   /* منع CLS للصور */
-  img, video, svg {
+  img,
+  video,
+  svg {
     max-width: 100%;
     height: auto;
     display: block;
   }
 
   /* تحسين contrast للنص الرمادي (Accessibility) */
-  .text-gray-400 { color: #6b7280 !important; }
-  .dark .text-gray-400 { color: #9ca3af !important; }
+  .text-gray-400 {
+    color: #6b7280 !important;
+  }
+
+  .dark .text-gray-400 {
+    color: #9ca3af !important;
+  }
 
   /* تحسين focus للـ accessibility */
   :focus-visible {
-    outline: 2px solid #F42C37;
+    outline: 2px solid var(--color-primary);
     outline-offset: 2px;
   }
 }
@@ -49,6 +118,7 @@
   .nav-link {
     @apply px-4 py-2 font-semibold text-gray-700 hover:text-primary dark:text-gray-300 dark:hover:text-white transition-colors cursor-pointer;
   }
+
   .nav-link.active {
     @apply text-primary dark:text-primary;
   }
@@ -56,6 +126,50 @@
   /* أزرار touch targets — 44×44px minimum (WCAG 2.5.5) */
   .touch-target {
     @apply min-w-[44px] min-h-[44px] inline-flex items-center justify-center;
+  }
+
+  /* ============================================
+     🎨 2. تخصيص ألوان Tailwind باستخدام المتغيرات
+     ============================================ */
+  .bg-primary {
+    background-color: var(--color-primary) !important;
+  }
+
+  .bg-primary-dark {
+    background-color: var(--color-primary-dark) !important;
+  }
+
+  .bg-primary-light {
+    background-color: var(--color-primary-light) !important;
+  }
+
+  .text-primary {
+    color: var(--color-primary) !important;
+  }
+
+  .border-primary {
+    border-color: var(--color-primary) !important;
+  }
+
+  .ring-primary {
+    --tw-ring-color: var(--color-primary) !important;
+  }
+
+  .shadow-primary {
+    box-shadow: 0 4px 20px rgba(var(--color-primary-rgb), 0.25) !important;
+  }
+
+  /* Glass effect */
+  .glass {
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+  }
+
+  .dark .glass {
+    background: rgba(15, 23, 42, 0.7);
+    border-color: rgba(255, 255, 255, 0.05);
   }
 }
 
@@ -65,55 +179,120 @@
   }
 
   /* custom scrollbar */
-  .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-  .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-  .custom-scrollbar::-webkit-scrollbar-thumb { @apply bg-gray-300 dark:bg-gray-600 rounded-full; }
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 dark:bg-gray-600 rounded-full;
+  }
 }
 
-/* ── Animations ── */
+/* ============================================
+   🎬 3. ANIMATIONS
+   ============================================ */
 @keyframes slideIn {
-  from { transform: translateX(100%); opacity: 0; }
-  to   { transform: translateX(0);    opacity: 1; }
-}
-@keyframes slideInDown {
-  from { transform: translateY(-12px); opacity: 0; }
-  to   { transform: translateY(0);     opacity: 1; }
-}
-@keyframes fadeUp {
-  from { transform: translateY(16px); opacity: 0; }
-  to   { transform: translateY(0);    opacity: 1; }
-}
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-@keyframes bubblePop {
-  0%   { transform: scale(0.92) translateY(6px); opacity: 0; }
-  100% { transform: scale(1) translateY(0);      opacity: 1; }
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
 
-.animate-slide-in      { animation: slideIn 0.3s ease-out both; }
-.animate-slide-in-down { animation: slideInDown 0.2s ease-out both; }
-.animate-fade-up       { animation: fadeUp 0.4s ease-out both, bubblePop 0.25s ease-out both; }
-.animate-fade-in       { animation: fadeIn 0.3s ease both; }
+@keyframes slideInDown {
+  from {
+    transform: translateY(-12px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeUp {
+  from {
+    transform: translateY(16px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes bubblePop {
+  0% {
+    transform: scale(0.92) translateY(6px);
+    opacity: 0;
+  }
+
+  100% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in {
+  animation: slideIn 0.3s ease-out both;
+}
+
+.animate-slide-in-down {
+  animation: slideInDown 0.2s ease-out both;
+}
+
+.animate-fade-up {
+  animation: fadeUp 0.4s ease-out both, bubblePop 0.25s ease-out both;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease both;
+}
 
 /* ── Ripple effect للأزرار ── */
 .btn-ripple {
   position: relative;
   overflow: hidden;
 }
+
 .btn-ripple::after {
   content: '';
   position: absolute;
   inset: 0;
-  background: rgba(255,255,255,0.15);
+  background: rgba(255, 255, 255, 0.15);
   opacity: 0;
   transition: opacity 0.2s;
 }
-.btn-ripple:active::after { opacity: 1; }
+
+.btn-ripple:active::after {
+  opacity: 1;
+}
 
 /* ── Touch targets (Accessibility WCAG 2.5.5) ── */
 button,
@@ -123,20 +302,402 @@ input[type="submit"],
 input[type="button"] {
   min-height: 44px;
 }
-.btn-sm { min-height: 32px; }
 
-/* ── Skeleton loading animation ── */
-@keyframes shimmer {
-  0%   { background-position: -200% 0; }
-  100% { background-position:  200% 0; }
+.btn-sm {
+  min-height: 32px;
 }
+
+/* ── Skeleton loading animation (محسّن) ── */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
+}
+
 .skeleton {
   background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
   border-radius: 8px;
+  min-height: 8px;
 }
+
 .dark .skeleton {
-  background: linear-gradient(90deg, #374151 25%, #4b5563 50%, #374151 75%);
+  background: linear-gradient(90deg, #2d3748 25%, #4a5568 50%, #2d3748 75%);
   background-size: 200% 100%;
+}
+
+/* ── تحسين دقة الـ Skeleton ── */
+.skeleton-rounded {
+  border-radius: 9999px;
+}
+
+.skeleton-square {
+  border-radius: 0;
+}
+
+.skeleton-card {
+  border-radius: 16px;
+}
+
+/* ============================================
+   ♿ 4. PREFERS-REDUCED-MOTION
+   ============================================ */
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  html {
+    scroll-behavior: auto;
+  }
+
+  .animate-slide-in,
+  .animate-slide-in-down,
+  .animate-fade-up,
+  .animate-fade-in {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .skeleton {
+    animation: none !important;
+    background: #e5e7eb !important;
+  }
+
+  .dark .skeleton {
+    background: #374151 !important;
+  }
+}
+
+/* ============================================
+   📱 RESPONSIVE DESIGN IMPROVEMENTS
+   ============================================ */
+
+/* ── الجوال (أقل من 640px) ── */
+@media (max-width: 640px) {
+  .container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  /* تقليل حجم الخطوط */
+  h1 {
+    font-size: 1.75rem;
+  }
+
+  h2 {
+    font-size: 1.5rem;
+  }
+
+  h3 {
+    font-size: 1.25rem;
+  }
+
+  /* تحسين البطاقات */
+  .rounded-2xl {
+    border-radius: 1rem;
+  }
+
+  .p-6 {
+    padding: 1rem;
+  }
+
+  /* تحسين الأزرار */
+  button,
+  a[role="button"],
+  [role="button"],
+  input[type="submit"],
+  input[type="button"] {
+    min-height: 48px;
+    padding: 0.5rem 1rem;
+  }
+
+  /* تحسين الحقول */
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+    /* منع تكبير iOS التلقائي */
+    padding: 0.75rem 1rem;
+  }
+
+  /* تحسين المسافات بين الأقسام */
+  section {
+    scroll-margin-top: 80px;
+  }
+
+  /* تحسين شبكة البطاقات */
+  .grid-cols-1 {
+    grid-template-columns: 1fr;
+  }
+
+  .grid-cols-2 {
+    grid-template-columns: 1fr;
+  }
+
+  .grid-cols-3 {
+    grid-template-columns: 1fr;
+  }
+
+  /* تحسين القوائم الجانبية */
+  .w-72 {
+    width: 85vw;
+    max-width: 320px;
+  }
+}
+
+/* ── التابلت (640px - 1024px) ── */
+@media (min-width: 640px) and (max-width: 1024px) {
+  .container {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+
+  .grid-cols-2 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .grid-cols-3 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ── الشاشات الكبيرة (أكبر من 1280px) ── */
+@media (min-width: 1280px) {
+  .container {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+
+  .grid-cols-3 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* ============================================
+   ✨ MOTION & 3D EFFECTS
+   ============================================ */
+
+/* ── Floating Elements ── */
+@keyframes float {
+  0% {
+    transform: translateY(0px) rotate(0deg);
+  }
+
+  50% {
+    transform: translateY(-12px) rotate(2deg);
+  }
+
+  100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+.animate-float-delayed {
+  animation: float 4s ease-in-out infinite 1.5s;
+}
+
+.animate-float-slow {
+  animation: float 6s ease-in-out infinite 0.5s;
+}
+
+/* ── Pulse Glow للأزرار ── */
+@keyframes pulseGlow {
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(var(--color-primary-rgb), 0.3);
+  }
+
+  50% {
+    box-shadow: 0 0 20px 4px rgba(var(--color-primary-rgb), 0.15);
+  }
+}
+
+.btn-pulse {
+  animation: pulseGlow 2.5s ease-in-out infinite;
+}
+
+/* ── Hover Lift (ارتفاع خفيف مع ظل) ── */
+.hover-lift {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+}
+
+.dark .hover-lift:hover {
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+}
+
+/* ── Hover Scale (تكبير خفيف) ── */
+.hover-scale {
+  transition: transform 0.3s ease;
+}
+
+.hover-scale:hover {
+  transform: scale(1.02);
+}
+
+/* ── Hover Glow (توهج خفيف) ── */
+.hover-glow {
+  transition: box-shadow 0.3s ease, border-color 0.3s ease;
+}
+
+.hover-glow:hover {
+  box-shadow: 0 0 30px rgba(var(--color-primary-rgb), 0.1);
+  border-color: var(--color-primary);
+}
+
+/* ── Bounce on click ── */
+@keyframes bounce-click {
+  0% {
+    transform: scale(1);
+  }
+
+  40% {
+    transform: scale(1.2);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+.animate-bounce-click {
+  animation: bounce-click 0.3s ease-out both;
+}
+
+/* ============================================
+   🍞 TOAST IMPROVEMENTS (react-hot-toast)
+   ============================================ */
+
+/* ── تحسين react-hot-toast على الموبايل ── */
+/* .react-hot-toast-custom {
+  animation: toastSlideIn 0.25s ease-out both !important;
+} */
+
+@keyframes toastSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ── زر إغلاق يدوي لـ react-hot-toast ── */
+.toast-close-btn {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 4px;
+  margin-left: 8px;
+  transition: color 0.2s;
+}
+
+.toast-close-btn:hover {
+  color: #374151;
+}
+
+.dark .toast-close-btn:hover {
+  color: #e5e7eb;
+}
+
+/* ── دعم prefers-reduced-motion للـ Toast ── */
+@media (prefers-reduced-motion: reduce) {
+  .react-hot-toast-custom {
+    animation: none !important;
+  }
+
+  .toast-close-btn {
+    transition: none !important;
+  }
+}
+
+/* تنسيق علامة origin */
+.origin-marker {
+  filter: hue-rotate(120deg) saturate(3) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
+
+/* توهج للمنقذين النشطين */
+.rescuer-marker-active {
+  animation: pulse-marker 2s infinite;
+}
+
+@keyframes pulse-marker {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(1.2);
+    opacity: 0.7;
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* src/index.css */
+
+/* تحجيم أيقونات الخريطة حسب الشاشة */
+.custom-pin-marker {
+  width: 38px !important;
+  height: 50px !important;
+}
+
+.custom-pin-marker svg {
+  width: 38px !important;
+  height: 50px !important;
+}
+
+/* على الشاشات الصغيرة (موبايل) */
+@media (max-width: 768px) {
+  .custom-pin-marker {
+    width: 54px !important;
+    height: 70px !important;
+  }
+
+  .custom-pin-marker svg {
+    width: 54px !important;
+    height: 70px !important;
+  }
+}
+
+/* على الشاشات المتوسطة (تابلت) */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .custom-pin-marker {
+    width: 44px !important;
+    height: 58px !important;
+  }
+
+  .custom-pin-marker svg {
+    width: 44px !important;
+    height: 58px !important;
+  }
 }

@@ -14,10 +14,9 @@ import {
   reactToComment,
 } from '../../redux/slices/postsSlice';
 import { confirmToast, showSuccess, showError } from '../../utils/toastHelpers.jsx';
-import { formatDate } from '../../utils/dateUtils';
+import { formatDate } from '../../utils/dateHelpers';
 import { useTranslation } from 'react-i18next';
 
-// ── Comments section ───────────────────────────────────────────
 const CommentsSection = ({ postId, isMember = false }) => {
   const { t } = useTranslation();
   const dispatch  = useDispatch();
@@ -31,7 +30,6 @@ const CommentsSection = ({ postId, isMember = false }) => {
   const error    = bucket?.error   || null;
   const { currentUser } = useSelector(s => s.user);
 
-  // جلب التعليقات للجميع (لا يحتاج token)
   useEffect(() => {
     if (!bucket) dispatch(fetchArticleComments({ articleId: postId }));
   }, [postId, dispatch, bucket]);
@@ -55,8 +53,7 @@ const CommentsSection = ({ postId, isMember = false }) => {
   };
 
   return (
-    <div>
-      {/* Header */}
+    <div className="animate-fade-up">
       <h4 className="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-4 flex items-center gap-2">
         {t('comments.title')}
         {comments.length > 0 && (
@@ -66,9 +63,7 @@ const CommentsSection = ({ postId, isMember = false }) => {
         )}
       </h4>
 
-      {/* ── Input area ── */}
       {isMember ? (
-        /* مسجل — يمكنه الكتابة */
         <div className="flex gap-3 mb-5">
           <FaUserCircle className="text-3xl text-gray-300 dark:text-gray-600 shrink-0 mt-1" aria-hidden="true" />
           <div className="flex-1 relative">
@@ -80,26 +75,25 @@ const CommentsSection = ({ postId, isMember = false }) => {
               aria-label={t('comments.writeComment')}
               rows={2}
               disabled={sending}
-              className="w-full pr-4 pl-10 py-2.5 text-sm border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 resize-none focus:outline-none focus:ring-2 focus:ring-primary/40 transition"
+              className="w-full pr-4 pl-10 py-2.5 text-sm border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 resize-none focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent transition-all duration-200"
             />
             <button
               onClick={handleSend}
               disabled={!text.trim() || sending}
               aria-label={t('comments.sendComment')}
-              className="absolute bottom-2.5 left-2.5 text-primary hover:text-primary/70 disabled:opacity-30 disabled:cursor-not-allowed transition min-w-[28px] min-h-[28px] flex items-center justify-center"
+              className="absolute bottom-2.5 left-2.5 text-primary hover:text-primary/70 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 min-w-[28px] min-h-[28px] flex items-center justify-center hover:scale-110"
             >
               <FaPaperPlane className={sending ? 'animate-pulse' : ''} aria-hidden="true" />
             </button>
           </div>
         </div>
       ) : (
-        /* زائر — يرى التعليقات ولكن لا يكتب */
         <div className="mb-5 flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/40 rounded-xl">
           <FaLock className="text-gray-400 text-xs shrink-0" aria-hidden="true" />
           <p className="text-sm text-gray-500 dark:text-gray-400">
             <button
               onClick={() => navigate('/login')}
-              className="text-primary font-medium hover:underline"
+              className="text-primary font-medium hover:underline transition-colors"
             >
               {t('comments.loginToComment')}
             </button>
@@ -108,7 +102,6 @@ const CommentsSection = ({ postId, isMember = false }) => {
         </div>
       )}
 
-      {/* ── Comments list ── */}
       {loading ? (
         <div className="flex justify-center py-6" role="status" aria-label={t('common.loading')}>
           <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
@@ -140,7 +133,6 @@ const CommentsSection = ({ postId, isMember = false }) => {
   );
 };
 
-// ── Comment item ───────────────────────────────────────────────
 const CommentItem = ({ comment, postId, isMember, currentUserId }) => {
   const { t } = useTranslation();
   const dispatch  = useDispatch();
@@ -205,15 +197,14 @@ const CommentItem = ({ comment, postId, isMember, currentUserId }) => {
   if (deleting) return null;
 
   return (
-    <div className="flex gap-2.5 group" role="listitem">
-      {/* Avatar */}
+    <div className="flex gap-2.5 group animate-fade-up" role="listitem">
       {comment.author?.avatar ? (
         <img
           src={comment.author.avatar}
           alt={comment.author.name}
           width={32} height={32}
           style={{ aspectRatio: '1/1' }}
-          className="w-8 h-8 rounded-full object-cover shrink-0 mt-0.5"
+          className="w-8 h-8 rounded-full object-cover shrink-0 mt-0.5 ring-2 ring-primary/20"
           loading="lazy"
         />
       ) : (
@@ -221,12 +212,11 @@ const CommentItem = ({ comment, postId, isMember, currentUserId }) => {
       )}
 
       <div className="flex-1 min-w-0">
-        <div className={`rounded-xl px-3.5 py-2.5 ${
+        <div className={`rounded-xl px-3.5 py-2.5 transition-all duration-200 ${
           isWeighted
             ? 'bg-primary/5 dark:bg-primary/10 border border-primary/20'
             : 'bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700/50'
         }`}>
-          {/* Author row */}
           <div className="flex items-center gap-2 mb-1 flex-wrap">
             <span className="text-xs font-semibold text-gray-800 dark:text-white">
               {comment.author?.name || t('common.unknown')}
@@ -244,7 +234,6 @@ const CommentItem = ({ comment, postId, isMember, currentUserId }) => {
             </time>
           </div>
 
-          {/* Content / Edit form */}
           {isEditing ? (
             <div className="mt-2 space-y-2">
               <textarea
@@ -253,18 +242,18 @@ const CommentItem = ({ comment, postId, isMember, currentUserId }) => {
                 rows={2}
                 aria-label={t('comments.editPlaceholder')}
                 autoFocus
-                className="w-full px-3 py-2 border rounded-lg text-sm dark:bg-gray-700 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-primary/40"
+                className="w-full px-3 py-2 border rounded-lg text-sm dark:bg-gray-700 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all duration-200"
               />
               <div className="flex gap-2">
                 <button
                   onClick={handleEdit}
-                  className="text-xs bg-primary text-white px-3 py-1.5 rounded-lg hover:bg-primary/90 transition"
+                  className="text-xs bg-primary text-white px-3 py-1.5 rounded-lg hover:bg-primary/90 transition-all duration-200 hover:shadow-md active:scale-[0.98]"
                 >
                   {t('common.save')}
                 </button>
                 <button
                   onClick={() => setIsEditing(false)}
-                  className="text-xs bg-gray-200 dark:bg-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-300 transition"
+                  className="text-xs bg-gray-200 dark:bg-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-all duration-200"
                 >
                   {t('common.cancel')}
                 </button>
@@ -276,16 +265,14 @@ const CommentItem = ({ comment, postId, isMember, currentUserId }) => {
             </p>
           )}
 
-          {/* Reactions + actions */}
           <div className="flex items-center justify-between mt-2">
-            {/* Like / Dislike */}
             <div className="flex items-center gap-2">
               <button
                 onClick={() => handleReaction('like')}
                 aria-label={`${t('comments.like')}${localLikes > 0 ? ` (${localLikes})` : ''}${!isMember ? ` — ${t('comments.loginRequired')}` : ''}`}
                 aria-pressed={localReaction === 'like'}
-                className={`flex items-center gap-1 text-xs transition min-h-[28px] ${
-                  localReaction === 'like' ? 'text-rose-500' : 'text-gray-400 hover:text-rose-400'
+                className={`flex items-center gap-1 text-xs transition-all duration-200 min-h-[28px] ${
+                  localReaction === 'like' ? 'text-rose-500 scale-110' : 'text-gray-400 hover:text-rose-400 hover:scale-110'
                 }`}
               >
                 {localReaction === 'like'
@@ -299,8 +286,8 @@ const CommentItem = ({ comment, postId, isMember, currentUserId }) => {
                 onClick={() => handleReaction('dislike')}
                 aria-label={`${t('comments.dislike')}${localDislikes > 0 ? ` (${localDislikes})` : ''}${!isMember ? ` — ${t('comments.loginRequired')}` : ''}`}
                 aria-pressed={localReaction === 'dislike'}
-                className={`flex items-center gap-1 text-xs transition min-h-[28px] ${
-                  localReaction === 'dislike' ? 'text-gray-600 dark:text-gray-300' : 'text-gray-400 hover:text-gray-500'
+                className={`flex items-center gap-1 text-xs transition-all duration-200 min-h-[28px] ${
+                  localReaction === 'dislike' ? 'text-gray-600 dark:text-gray-300 scale-110' : 'text-gray-400 hover:text-gray-500 hover:scale-110'
                 }`}
               >
                 {localReaction === 'dislike'
@@ -311,20 +298,19 @@ const CommentItem = ({ comment, postId, isMember, currentUserId }) => {
               </button>
             </div>
 
-            {/* Edit / Delete — owner only */}
             {isOwner && !isEditing && (
-              <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+              <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-200">
                 <button
                   onClick={() => setIsEditing(true)}
                   aria-label={t('comments.edit')}
-                  className="text-xs text-blue-500 hover:text-blue-700 min-w-[28px] min-h-[28px] flex items-center justify-center"
+                  className="text-xs text-blue-500 hover:text-blue-700 min-w-[28px] min-h-[28px] flex items-center justify-center transition-all duration-200 hover:scale-110"
                 >
                   <FaEdit size={12} aria-hidden="true" />
                 </button>
                 <button
                   onClick={handleDelete}
                   aria-label={t('comments.delete')}
-                  className="text-xs text-red-500 hover:text-red-700 min-w-[28px] min-h-[28px] flex items-center justify-center"
+                  className="text-xs text-red-500 hover:text-red-700 min-w-[28px] min-h-[28px] flex items-center justify-center transition-all duration-200 hover:scale-110"
                 >
                   <FaTrash size={12} aria-hidden="true" />
                 </button>

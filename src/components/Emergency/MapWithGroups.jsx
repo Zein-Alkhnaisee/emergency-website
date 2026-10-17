@@ -1,5 +1,6 @@
-import React, { useMemo, memo, useState, useCallback, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Circle, useMapEvents } from 'react-leaflet';
+// src/components/Emergency/MapWithGroups.jsx
+import React, { useMemo, memo, useCallback, useEffect, useRef } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, Circle, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
@@ -13,31 +14,39 @@ L.Icon.Default.mergeOptions({
   shadowUrl: markerShadow,
 });
 
-// أيقونة خاصة للغروبات المعلقة (نقطة صفراء مع علامة ساعة)
 const pendingIcon = L.divIcon({
   html: '⏳',
-  className: 'bg-yellow-500 rounded-full p-1 text-white flex items-center justify-center text-sm font-bold',
+  className: 'bg-yellow-500 rounded-full p-1 text-white flex items-center justify-center text-sm font-bold shadow-lg',
   iconSize: [28, 28],
 });
 
-// أيقونة موقع المستخدم (نقطة حمراء عادية، لا حاجة لتغيير)
-const userIcon = L.divIcon({
-  html: '📍',
-  className: 'text-2xl',
-});
+// ── MapUpdater ──
+const MapUpdater = ({ center }) => {
+  const map = useMap();
+  useEffect(() => {
+    if (center && map && Array.isArray(center) && center.length === 2) {
+      setTimeout(() => {
+        map.setView(center, 13);
+        console.log('🗺️ Map setView to:', center);
+      }, 50);
+    }
+  }, [center, map]);
+  return null;
+};
 
-// مكون داخلي للتعامل مع نقرات الخريطة
-const MapClickHandler = ({ onLocationSelect }) => {
+// ── MapClickHandler ──
+const MapClickHandler = React.memo(({ onLocationSelect }) => {
   useMapEvents({
     click(e) {
       onLocationSelect([e.latlng.lat, e.latlng.lng]);
     },
   });
   return null;
-};
+});
+MapClickHandler.displayName = 'MapClickHandler';
 
-// علامة قابلة للسحب
-const DraggableMarker = ({ position, onDragEnd }) => {
+// ── DraggableMarker ──
+const DraggableMarker = React.memo(({ position, onDragEnd }) => {
   const markerRef = useRef(null);
   const eventHandlers = useMemo(
     () => ({
@@ -51,52 +60,78 @@ const DraggableMarker = ({ position, onDragEnd }) => {
     }),
     [onDragEnd]
   );
-
-  if (!position) return null;
-
+  if (!position || !Array.isArray(position) || position.length !== 2) return null;
   return (
-    <Marker
-      draggable={true}
-      eventHandlers={eventHandlers}
-      position={position}
-      ref={markerRef}
-    >
-      <Popup>موقع مختار (يمكنك سحبه)</Popup>
+    <Marker draggable={true} eventHandlers={eventHandlers} position={position} ref={markerRef}>
+      <Popup>📍 موقع مختار (يمكنك سحبه)</Popup>
     </Marker>
   );
-};
+});
+DraggableMarker.displayName = 'DraggableMarker';
 
-const MapWithGroups = memo(({ 
-  userLocation,      // موقع GPS الفعلي
-  selectedLocation,  // الموقع الذي اختاره المستخدم يدوياً (قد يكون null)
-  onLocationSelect,  // دالة عند اختيار موقع جديد (نقرة أو سحب)
-  groups = [],       // قائمة الغروبات الرسمية
-  waitingList = []   // قائمة الغروبات المعلقة
+// ── Main Map ── (تمت إزالة React.memo مؤقتاً)
+const MapWithGroups = ({
+  userLocation,
+  selectedLocation,
+  onLocationSelect,
+  groups = [],
+  waitingList = [],
+  isLocating = false,
 }) => {
-  // المركز: إذا كان هناك موقع مختار نستخدمه، وإلا نستخدم موقع GPS
-  const center = useMemo(() => {
-    if (selectedLocation) return selectedLocation;
-    return userLocation || [23.8859, 45.0792];
+  console.log('🔄 MapWithGroups rendered with userLocation:', userLocation);
+
+  const activeCenter = useMemo(() => {
+    if (selectedLocation && Array.isArray(selectedLocation) && selectedLocation.length === 2) {
+      return selectedLocation;
+    }
+    if (userLocation && Array.isArray(userLocation) && userLocation.length === 2) {
+      return userLocation;
+    }
+    return null;
   }, [selectedLocation, userLocation]);
 
-  // علامة الموقع النشطة (التي سيتم استخدامها في البحث)
-  const activeLocation = selectedLocation || userLocation;
+  const activeLocation = useMemo(() => {
+    return selectedLocation || userLocation || null;
+  }, [selectedLocation, userLocation]);
+
+  const handleDragEnd = useCallback((coords) => {
+    onLocationSelect(coords);
+  }, [onLocationSelect]);
+
+  const handleClick = useCallback((coords) => {
+    onLocationSelect(coords);
+  }, [onLocationSelect]);
+
+  if (!activeCenter) {
+    return (
+      <div className="h-[400px] w-full rounded-xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+        <p className="text-gray-500 dark:text-gray-400 text-sm">
+          {isLocating ? 'جارٍ تحديد الموقع...' : 'الموقع غير متوفر. يرجى تمكين GPS.'}
+        </p>
+      </div>
+    );
+  }
+
+  const mapKey = `map-${activeCenter[0].toFixed(4)}-${activeCenter[1].toFixed(4)}`;
 
   return (
     <MapContainer
-      center={center}
-      zoom={8}
+      key={mapKey}
+      center={activeCenter}
+      zoom={13}
       style={{ height: '400px', width: '100%' }}
-      className="rounded-xl z-0"
+      className="rounded-xl z-0 shadow-inner"
+      whenReady={() => console.log('🗺️ Map ready with center:', activeCenter)}
     >
+      <MapUpdater center={activeCenter} />
+      
       <TileLayer
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         attribution='&copy; OpenStreetMap'
       />
 
-      <MapClickHandler onLocationSelect={onLocationSelect} />
+      <MapClickHandler onLocationSelect={handleClick} />
 
-      {/* ── الغروبات الرسمية (دوائر زرقاء) ── */}
       {groups.map(group => {
         const centerLat = group.center_lat || (group.center && group.center[0]);
         const centerLng = group.center_lng || (group.center && group.center[1]);
@@ -107,19 +142,18 @@ const MapWithGroups = memo(({
             <Circle
               center={[centerLat, centerLng]}
               radius={radius}
-              pathOptions={{ color: 'blue', fillColor: 'blue', fillOpacity: 0.15, weight: 1 }}
+              pathOptions={{ color: '#3b82f6', fillColor: '#3b82f6', fillOpacity: 0.15, weight: 2 }}
             />
             <Marker position={[centerLat, centerLng]}>
               <Popup>
-                <strong>{group.name || `غروب #${group.id}`}</strong><br />
-                نصف القطر: {group.radius_km || 5} كم
+                <strong className="text-primary">{group.name || `غروب #${group.id}`}</strong><br />
+                <span className="text-xs text-gray-500">نصف القطر: {group.radius_km || 5} كم</span>
               </Popup>
             </Marker>
           </React.Fragment>
         );
       })}
 
-      {/* ── الغروبات المعلقة (دوائر صفراء + نقطة صفراء) ── */}
       {waitingList.map(wait => {
         const centerLat = wait.center_lat || (wait.centroid && wait.centroid[0]);
         const centerLng = wait.center_lng || (wait.centroid && wait.centroid[1]);
@@ -130,33 +164,26 @@ const MapWithGroups = memo(({
             <Circle
               center={[centerLat, centerLng]}
               radius={radius}
-              pathOptions={{ color: '#eab308', fillColor: '#facc15', fillOpacity: 0.15, weight: 1, dashArray: '5,5' }} // خط متقطع أصفر
+              pathOptions={{ color: '#eab308', fillColor: '#facc15', fillOpacity: 0.12, weight: 2, dashArray: '6,6' }}
             />
             <Marker position={[centerLat, centerLng]} icon={pendingIcon}>
               <Popup>
-                <strong>⏳ غروب قيد الانتظار</strong><br />
-                العدد: {wait.count || wait.members_count || wait.nearby_users_count || 0} مستخدم<br />
-                نصف القطر: {wait.radius_km || 5} كم
+                <strong className="text-yellow-600">⏳ غروب قيد الانتظار</strong><br />
+                <span className="text-xs text-gray-500">العدد: {wait.count || wait.members_count || wait.nearby_users_count || 0} مستخدم</span>
               </Popup>
             </Marker>
           </React.Fragment>
         );
       })}
 
-      {/* ── علامة الموقع النشط (قابلة للسحب إذا كانت مختارة) ── */}
-      {activeLocation && (
-        <DraggableMarker position={activeLocation} onDragEnd={onLocationSelect} />
-      )}
-
-      {/* ── موقع GPS الأصلي (للمقارنة) ── */}
+      {activeLocation && <DraggableMarker position={activeLocation} onDragEnd={handleDragEnd} />}
       {userLocation && !selectedLocation && (
         <Marker position={userLocation}>
-          <Popup>موقعك الحقيقي (GPS)</Popup>
+          <Popup>📍 موقعك الحقيقي (GPS)</Popup>
         </Marker>
       )}
     </MapContainer>
   );
-});
+};
 
-MapWithGroups.displayName = 'MapWithGroups';
 export default MapWithGroups;

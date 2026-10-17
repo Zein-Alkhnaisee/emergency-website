@@ -1,5 +1,3 @@
-// src/components/Profile/ProfileActivity.jsx
-// 🔑 Member — عرض سجل التعليقات والتفاعلات في الملف الشخصي
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { FaComment, FaHeart, FaThumbsDown, FaExternalLinkAlt, FaChevronRight } from 'react-icons/fa';
@@ -19,8 +17,7 @@ const ProfileActivity = () => {
     }, [dispatch]);
 
     return (
-        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden">
-            {/* Tabs */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-200 animate-fade-up">
             <div className="flex border-b border-gray-100 dark:border-gray-700">
                 <TabButton
                     active={activeTab === TAB.COMMENTS}
@@ -38,7 +35,6 @@ const ProfileActivity = () => {
                 />
             </div>
 
-            {/* Content */}
             <div className="divide-y divide-gray-50 dark:divide-gray-700/50">
                 {activeTab === TAB.COMMENTS && (
                     <CommentsList
@@ -59,7 +55,6 @@ const ProfileActivity = () => {
     );
 };
 
-// ── تعليقاتي ───────────────────────────────────────────────
 const CommentsList = ({ loading, error, data }) => {
     if (loading) return <LoadingState />;
     if (error) return <ErrorState msg={error} />;
@@ -68,7 +63,7 @@ const CommentsList = ({ loading, error, data }) => {
     return (
         <>
             {data.map(comment => (
-                <div key={comment.id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                <div key={comment.id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-all duration-200 hover:scale-[1.01]">
                     <div className="flex items-start gap-3">
                         <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
                             <FaComment className="text-primary text-xs" />
@@ -98,7 +93,7 @@ const CommentsList = ({ loading, error, data }) => {
                         {comment.on?.id && (
                             <a
                                 href={`/posts/${comment.on.id}`}
-                                className="text-gray-300 hover:text-primary transition-colors flex-shrink-0"
+                                className="text-gray-300 hover:text-primary transition-colors duration-200 hover:scale-110 flex-shrink-0"
                                 title="عرض المقالة"
                             >
                                 <FaExternalLinkAlt className="text-xs" />
@@ -111,7 +106,6 @@ const CommentsList = ({ loading, error, data }) => {
     );
 };
 
-// ── تفاعلاتي ───────────────────────────────────────────────
 const ReactionsList = ({ loading, error, data }) => {
     if (loading) return <LoadingState />;
     if (error) return <ErrorState msg={error} />;
@@ -120,12 +114,13 @@ const ReactionsList = ({ loading, error, data }) => {
     return (
         <>
             {data.map(reaction => (
-                <div key={reaction.id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                <div key={reaction.id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-all duration-200 hover:scale-[1.01]">
                     <div className="flex items-center gap-3">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${reaction.type === 'like'
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                            reaction.type === 'like'
                                 ? 'bg-rose-50 dark:bg-rose-900/20'
                                 : 'bg-gray-100 dark:bg-gray-700'
-                            }`}>
+                        }`}>
                             {reaction.type === 'like'
                                 ? <FaHeart className="text-rose-500 text-xs" />
                                 : <FaThumbsDown className="text-gray-500 dark:text-gray-400 text-xs" />
@@ -153,7 +148,7 @@ const ReactionsList = ({ loading, error, data }) => {
                         {reaction.reactionable_type === 'Article' && reaction.reactionable_id && (
                             <a
                                 href={`/posts/${reaction.reactionable_id}`}
-                                className="text-gray-300 hover:text-primary transition-colors flex-shrink-0"
+                                className="text-gray-300 hover:text-primary transition-colors duration-200 hover:scale-110 flex-shrink-0"
                                 title="عرض المقالة"
                             >
                                 <FaExternalLinkAlt className="text-xs" />
@@ -166,7 +161,6 @@ const ReactionsList = ({ loading, error, data }) => {
     );
 };
 
-// ── Helpers ─────────────────────────────────────────────────
 const formatDate = (str) => {
     if (!str) return '';
     const diff = Math.floor((Date.now() - new Date(str)) / 60000);
@@ -179,16 +173,18 @@ const formatDate = (str) => {
 const TabButton = ({ active, onClick, icon, label, count }) => (
     <button
         onClick={onClick}
-        className={`flex-1 flex items-center justify-center gap-2 py-3.5 text-sm font-medium transition-all border-b-2 ${active
-                ? 'border-primary text-primary bg-primary/5'
+        className={`flex-1 flex items-center justify-center gap-2 py-3.5 text-sm font-medium transition-all duration-200 border-b-2 ${
+            active
+                ? 'border-primary text-primary bg-primary/5 hover:bg-primary/10'
                 : 'border-transparent text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/30'
-            }`}
+        }`}
     >
         <span className="text-xs">{icon}</span>
         {label}
         {count != null && (
-            <span className={`text-xs px-1.5 py-0.5 rounded-full ${active ? 'bg-primary/15 text-primary' : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
-                }`}>
+            <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                active ? 'bg-primary/15 text-primary' : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
+            }`}>
                 {count}
             </span>
         )}

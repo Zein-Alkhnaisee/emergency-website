@@ -50,7 +50,7 @@ const ProductCard = memo(({ product, storeId }) => {
           {product.name}
         </h4>
         <div className="flex justify-between items-center">
-          <span className="text-primary font-bold text-sm">
+          <span className="text-[var(--color-primary)] font-bold text-sm">
             {product.price} {t('marketplace.currency')}
           </span>
           {isInCart ? (
@@ -67,7 +67,7 @@ const ProductCard = memo(({ product, storeId }) => {
               disabled={!product.inStock}
               className={`transition-colors p-1 ${
                 product.inStock
-                  ? 'text-primary hover:text-primary/70'
+                  ? 'text-[var(--color-primary)] hover:text-[var(--color-primary)]/70'
                   : 'text-gray-300 cursor-not-allowed'
               }`}
               aria-label={`إضافة ${product.name} إلى السلة`}

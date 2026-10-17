@@ -4,8 +4,11 @@ import { request } from './api';
 
 export const postsApi = {
   // ─── 🌐 Guest ──────────────────────────────────────────
-  getArticles: (page = 1, perPage = 10, search = '') =>
-    request(`/articles?page=${page}&per_page=${perPage}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
+  getArticles: (page = 1, perPage = 10, search = '') => {
+    let url = `/articles?page=${page}&per_page=${perPage}`;
+    if (search) url += `&search=${encodeURIComponent(search)}`;
+    return request(url);
+  },
 
   getArticleById: (id) =>
     request(`/articles/${id}`),

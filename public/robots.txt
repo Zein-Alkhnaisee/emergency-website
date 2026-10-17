@@ -1,5 +1,21 @@
+# robots.txt for E-Help
 User-agent: *
 Allow: /
-Disallow: /admin/
-Disallow: /dashboard/
-Sitemap: https://yourdomain.com/sitemap.xml
+Disallow: /login
+Disallow: /register
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /verify-*
+Disallow: /profile
+Disallow: /my-*
+Disallow: /role-requests
+Disallow: /emergency-chat
+Disallow: /my-case
+Disallow: /trust-verification
+Disallow: /notifications
+Disallow: /emergency/rescue-requests
+Disallow: /emergency/cases/*
+Disallow: /group-members
+
+# Sitemap
+Sitemap: https://zein-alkhnaisee.github.io/emergency-website/sitemap.xml

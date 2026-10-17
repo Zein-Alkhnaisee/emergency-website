@@ -1,40 +1,45 @@
-import { useCallback, memo } from 'react';
-import { FaSun, FaMoon } from 'react-icons/fa';
-import { useState, useEffect } from 'react';
-
-const getInitialTheme = () => {
-  try {
-    return localStorage.getItem('theme') || 'light';
-  } catch {
-    return 'light';
-  }
-};
+import { memo, useCallback } from 'react';
+import { FaSun, FaMoon, FaDesktop } from 'react-icons/fa';
+import { useTheme } from '../../contexts/ThemeContext';
 
 const DarkMode = memo(() => {
-  const [theme, setTheme] = useState(getInitialTheme);
-
-  useEffect(() => {
-    const root = document.documentElement;
-    root.classList.toggle('dark', theme === 'dark');
-    try {
-      localStorage.setItem('theme', theme);
-    } catch {}
-  }, [theme]);
+  const { preferences, updatePreferences, actualMode } = useTheme();
+  const isDark = actualMode === 'dark';
 
   const toggle = useCallback(() => {
-    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
-  }, []);
+    const modes = ['system', 'light', 'dark'];
+    const currentIndex = modes.indexOf(preferences.mode);
+    const nextIndex = (currentIndex + 1) % modes.length;
+    updatePreferences({ mode: modes[nextIndex] });
+  }, [preferences.mode, updatePreferences]);
+
+  const getIcon = useCallback(() => {
+    if (preferences.mode === 'system') {
+      return <FaDesktop className="text-xl" />;
+    }
+    return isDark 
+      ? <FaMoon className="text-xl text-yellow-400" />
+      : <FaSun className="text-xl text-yellow-500" />;
+  }, [preferences.mode, isDark]);
+
+  const getLabel = useCallback(() => {
+    if (preferences.mode === 'system') return 'تلقائي';
+    return isDark ? 'ليلي' : 'نهاري';
+  }, [preferences.mode, isDark]);
 
   return (
     <button
       onClick={toggle}
-      className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
-      aria-label={theme === 'dark' ? 'تفعيل الوضع النهاري' : 'تفعيل الوضع الليلي'}
+      className="relative p-2 rounded-full hover:bg-gray-100/80 dark:hover:bg-gray-800/80 transition-all duration-200 min-w-[44px] min-h-[44px] flex items-center justify-center gap-1 group"
+      aria-label={`تبديل الثيم (حالياً: ${getLabel()})`}
+      title={`الوضع: ${getLabel()}`}
     >
-      {theme === 'dark'
-        ? <FaSun className="text-yellow-400 text-xl" />
-        : <FaMoon className="text-gray-600 text-xl" />
-      }
+      <span className="transition-transform duration-300 group-hover:scale-110 group-hover:rotate-12">
+        {getIcon()}
+      </span>
+      <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-[8px] font-medium text-gray-400 dark:text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap">
+        {getLabel()}
+      </span>
     </button>
   );
 });

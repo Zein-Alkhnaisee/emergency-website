@@ -120,6 +120,20 @@ export const deleteService = createAsyncThunk(
   }
 );
 
+export const fetchUserServices = createAsyncThunk(
+  'services/fetchUserServices',
+  async (userId, { getState, rejectWithValue }) => {
+    try {
+      const token = getState().user.currentUser?.token || localStorage.getItem('token');
+      const response = await servicesApi.getUserServices(token, userId);
+      return { userId, services: response.data || [] };
+    } catch (err) {
+      return rejectWithValue(err.message);
+    }
+  }
+);
+
+
 // ─── Bookings ────────────────────────────────────────────────────
 
 export const bookService = createAsyncThunk(
@@ -308,6 +322,7 @@ const initialState = {
   filterCity: 'الكل',
   filterCategory: 'الكل',
   reportAlert: null,
+  userServices: {},
 };
 
 const servicesSlice = createSlice({
@@ -421,6 +436,10 @@ const servicesSlice = createSlice({
         if (idx !== -1) state.receivedBookings[idx] = payload;
         const myIdx = state.myBookings.findIndex(b => b.id === payload.id);
         if (myIdx !== -1) state.myBookings[myIdx] = payload;
+      })
+
+      .addCase(fetchUserServices.fulfilled, (state, { payload }) => {
+        state.userServices[payload.userId] = payload.services;
       })
 
       // ── cancelBooking ──

@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { forgotPasswordThunk, clearError } from '../../redux/slices/userSlice';
+import { useForm } from 'react-hook-form';
+import { forgotPasswordThunk, clearError, clearTempToken } from '../../redux/slices/userSlice';
 import Toast from '../../components/Toast';
 
 const ForgotPassword = () => {
@@ -10,11 +11,22 @@ const ForgotPassword = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { loading, error, temp_token } = useSelector((state) => state.user);
-  const [email, setEmail] = useState('');
   const [toast, setToast] = useState(null);
   const [toastKey, setToastKey] = useState(0);
   const isRTL = i18n.language === 'ar';
 
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    defaultValues: {
+      email: '',
+    },
+  });
+  useEffect(() => {
+    dispatch(clearTempToken());
+  }, [dispatch]);
   useEffect(() => {
     if (temp_token) navigate('/verify-otp');
   }, [temp_token, navigate]);
@@ -28,52 +40,72 @@ const ForgotPassword = () => {
     }
   }, [error, dispatch]);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!email) {
-      setToast({ message: t('enterEmail'), type: 'error' });
-      setToastKey(prev => prev + 1);
-      return;
-    }
-    await dispatch(forgotPasswordThunk(email));
+  const onSubmit = async (data) => {
+    await dispatch(forgotPasswordThunk(data.email));
   };
 
   return (
-    <div className="text-white h-screen flex items-center justify-center bg-cover" style={{ backgroundImage: `url(${import.meta.env.BASE_URL}emergency-login.png)`, backgroundAttachment:"fixed"}} dir={isRTL ? 'rtl' : 'ltr'}>
-      <div className="bg-slate-800 border border-slate-600 rounded-md p-10 shadow-lg backdrop-blur-lg bg-opacity-30 relative w-[500px]">
-        <h1 className="text-4xl font-bold text-center mb-6">{t('forgot Password')}</h1>
-        <p className="text-center text-sm text-gray-300 mb-6">{t('forgot Password Desc')}</p>
-        <form onSubmit={handleSubmit}>
-          <div className="relative my-6">
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className={`block w-full py-3 px-0 text-sm text-white bg-transparent border-0 border-b-2 border-gray-300 appearance-none focus:outline-none focus:ring-0 focus:text-white focus:border-red-400 peer ${email ? 'filled' : ''}`}
-              placeholder=" "
-              required
-              autoFocus
-            />
-            <label className={`absolute text-sm duration-300 transform -translate -z-10 origin-[0] top-3 ${isRTL ? 'right-0 left-auto' : 'left-0 right-auto'} peer-focus:text-red-100 peer-focus:scale-75 peer-focus:-translate-y-6 ${email ? 'scale-75 -translate-y-6' : 'scale-100 translate-y-0'}`}>
-              {t('email')}
-            </label>
+    <div
+      className="min-h-screen flex items-center justify-center p-4 bg-cover bg-center bg-fixed"
+      style={{ backgroundImage: `linear-gradient(135deg, rgba(15, 23, 42, 0.29), rgba(127, 29, 29, 0.30)), url(${import.meta.env.BASE_URL}emergency-login.png)` }}
+      dir={isRTL ? 'rtl' : 'ltr'}
+    >
+      <div className="w-full max-w-lg animate-slide-in-up">
+        <div className="bg-slate-800/50 backdrop-blur-xl rounded-2xl p-10 shadow-2xl border border-white/15 dark:border-gray-600/30">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-white tracking-tight">
+              {t('forgot Password')}
+            </h1>
+            <p className="text-sm text-gray-300 mt-2">
+              {t('forgot Password Desc')}
+            </p>
           </div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full text-lg mt-4 rounded bg-red-500 py-2.5 hover:bg-red-600 transition-colors duration-300 disabled:opacity-50"
-          >
-            {loading ? (
-              <div className="flex items-center justify-center gap-2">
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                {t('common.loading')}
-              </div>
-            ) : t('sendCode')}
-          </button>
-          <div className="text-center mt-6">
-            <Link to="/login" className="text-red-200 hover:text-red-100 hover:underline transition text-sm">{t('back To Login')}</Link>
-          </div>
-        </form>
+
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            <div className="relative">
+              <input
+                type="email"
+                {...register('email', {
+                  required: t('emailRequired', 'البريد الإلكتروني مطلوب'),
+                  pattern: {
+                    value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                    message: t('emailInvalid', 'البريد الإلكتروني غير صالح'),
+                  },
+                })}
+                className={`w-full px-4 py-3 bg-white/15 border rounded-xl text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/50 focus:border-transparent transition-all duration-200 ${errors.email ? 'border-red-500 ring-red-500/30' : 'border-white/20'
+                  }`}
+                placeholder={t('email')}
+                autoFocus
+              />
+              {errors.email && (
+                <p className="text-red-400 text-xs mt-1 animate-fade-up">
+                  {errors.email.message}
+                </p>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3.5 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary)]/90 text-white font-medium transition-all duration-200 hover:shadow-lg hover:shadow-[var(--color-primary)]/30 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {loading ? (
+                <>
+                  <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  {t('common.loading')}
+                </>
+              ) : (
+                t('sendCode')
+              )}
+            </button>
+
+            <div className="text-center">
+              <Link to="/login" className="text-white hover:text-[var(--color-primary)] transition-colors text-sm">
+                {t('back To Login')}
+              </Link>
+            </div>
+          </form>
+        </div>
       </div>
       {toast && <Toast key={toastKey} message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </div>

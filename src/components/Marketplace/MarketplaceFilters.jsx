@@ -28,6 +28,7 @@ const MarketplaceFilters = memo(() => {
 
   return (
     <div className="flex flex-wrap justify-center gap-2 mb-8">
+      {/* ── فلترة الموقع (معبئة بالكامل) ── */}
       {LOCATION_VALUES.map((val, i) => (
         <button
           key={val}
@@ -35,8 +36,8 @@ const MarketplaceFilters = memo(() => {
           aria-pressed={filterLocation === val}
           className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 flex items-center gap-1.5 ${
             filterLocation === val
-              ? 'bg-gradient-to-r from-primary to-secondary text-white shadow-md shadow-primary/20'
-              : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-primary/40 hover:text-primary'
+              ? 'bg-[var(--color-primary)] text-white shadow-md shadow-[var(--color-primary)]/25'
+              : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-[var(--color-primary)]/40 hover:text-[var(--color-primary)]'
           }`}
         >
           <FaMapMarkerAlt className="text-xs" />
@@ -46,6 +47,7 @@ const MarketplaceFilters = memo(() => {
 
       <div className="w-full h-px bg-gray-100 dark:bg-gray-800 my-1" />
 
+      {/* ── فلترة التصنيفات (إطار ونص فقط) ── */}
       {CATEGORY_VALUES.map((val, i) => (
         <button
           key={val}
@@ -53,7 +55,7 @@ const MarketplaceFilters = memo(() => {
           aria-pressed={filterCategory === val}
           className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 flex items-center gap-1.5 ${
             filterCategory === val
-              ? 'bg-primary/15 text-primary border border-primary/40'
+              ? 'border border-[var(--color-primary)] text-[var(--color-primary)] bg-transparent shadow-sm shadow-[var(--color-primary)]/10'
               : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
           }`}
         >

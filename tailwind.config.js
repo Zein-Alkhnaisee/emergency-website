@@ -1,6 +1,9 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  content: ["./src/**/*.{js,jsx,ts,tsx}"],
+  content: [
+    "./index.html", // ✅ إضافة
+    "./src/**/*.{js,jsx,ts,tsx}",
+  ],
   darkMode: "class",
   theme: {
     extend: {
@@ -18,5 +21,22 @@ module.exports = {
       }
     },
   },
+  // ✅ إضافة safelist لمنع حذف classes مهمة
+  safelist: [
+    'bg-primary',
+    'text-primary',
+    'border-primary',
+    'ring-primary',
+    'shadow-primary',
+    'hover:bg-primary',
+    'hover:text-primary',
+    'dark:bg-gray-800',
+    'dark:text-white',
+    'dark:border-gray-700',
+    'animate-fade-up',
+    'animate-slide-in',
+    'skeleton',
+    'glass',
+  ],
   plugins: [],
-}
+};

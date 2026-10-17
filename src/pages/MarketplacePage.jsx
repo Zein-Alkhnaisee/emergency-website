@@ -49,7 +49,7 @@ const MarketplacePage = () => {
         (err) => {
           console.error(err);
           setLocationError(t('marketplace.locationDenied'));
-          setUserLocation({ lat: 30.0444, lng: 31.2357 });
+          setUserLocation(null);
         }
       );
     } else {
@@ -106,7 +106,7 @@ const MarketplacePage = () => {
     return (
       <div className="container my-10 text-center">
         <p className="text-red-500">{locationError}</p>
-        <button onClick={() => window.location.reload()} className="text-primary underline mt-2" aria-label={t('marketplace.retryLocation')}>
+        <button onClick={() => window.location.reload()} className="text-[var(--color-primary)] underline mt-2" aria-label={t('marketplace.retryLocation')}>
           {t('marketplace.retryLocation')}
         </button>
       </div>
@@ -125,18 +125,19 @@ const MarketplacePage = () => {
         <div className="flex justify-end mb-6">
           <Button
             text={t('marketplace.openStore')}
-            bgColor="bg-secondary"
+            bgColor="bg-[var(--color-primary)] hover:bg-[var(--color-primary)]/90"
             textColor="text-white"
             icon={<FaStore className="mr-2" />}
             handler={() => setShowStoreForm(true)}
             ariaLabel={t('marketplace.openStore')}
+            className="shadow-[var(--color-primary)]/20 hover:shadow-[var(--color-primary)]/40"
           />
         </div>
       )}
 
       <div className="flex flex-wrap justify-between items-center gap-3 mb-6 bg-gray-100 dark:bg-gray-800 p-3 rounded-xl">
         <div className="flex items-center gap-2 text-sm">
-          <FaLocationArrow className="text-primary" />
+          <FaLocationArrow className="text-[var(--color-primary)]" />
           <span>{t('marketplace.showingNearby', { radius: maxDistance })}</span>
           <label htmlFor="maxDistance" className="sr-only">{t('marketplace.selectRadius')}</label>
           <select
@@ -167,7 +168,7 @@ const MarketplacePage = () => {
             <p className="text-gray-500">{t('marketplace.noStoresNearby', { radius: maxDistance })}</p>
             <button
               onClick={() => setMaxDistance(500)}
-              className="text-primary underline mt-2"
+              className="text-[var(--color-primary)] underline mt-2"
               aria-label={t('marketplace.increaseRadius')}
             >
               {t('marketplace.increaseRadius')}
@@ -184,7 +185,7 @@ const MarketplacePage = () => {
         <div>
           <button
             onClick={() => dispatch(setSelectedStore(null))}
-            className="mb-4 text-primary hover:underline"
+            className="mb-4 text-[var(--color-primary)] hover:underline"
             aria-label={t('marketplace.backToStores')}
           >
             &larr; {t('marketplace.backToStores')}
@@ -214,8 +215,8 @@ const MarketplacePage = () => {
               <option>{t('marketplace.catMedical')}</option>
             </select>
             <div className="flex gap-3 justify-end">
-              <Button text={t('common.cancel')} bgColor="bg-gray-500" textColor="text-white" handler={() => setShowStoreForm(false)} />
-              <Button text={t('marketplace.submit')} bgColor="bg-primary" textColor="text-white" handler={() => { alert(t('marketplace.requestSent')); setShowStoreForm(false); }} />
+              <Button text={t('common.cancel')} bgColor="bg-gray-100 dark:bg-gray-700" textColor="text-gray-700 dark:text-gray-300" handler={() => setShowStoreForm(false)} />
+              <Button text={t('marketplace.submit')} bgColor="bg-[var(--color-primary)] hover:bg-[var(--color-primary)]/90" textColor="text-white" handler={() => { alert(t('marketplace.requestSent')); setShowStoreForm(false); }} className="shadow-[var(--color-primary)]/20 hover:shadow-[var(--color-primary)]/40" />
             </div>
           </div>
         </div>

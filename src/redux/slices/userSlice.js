@@ -1,3 +1,4 @@
+// src/redux/slices/userSlice.js
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { authApi } from '../../services/authApi';
 
@@ -13,7 +14,7 @@ export const loginUser = createAsyncThunk('user/login', async (credentials, { re
     const { token, user, roles } = data;
     localStorage.setItem('token', token);
     localStorage.setItem('user', JSON.stringify(user ?? null));
-    // ✅ FIX: نخزن roles دايماً كمصفوفة
+    // ✅ نخزن roles دايماً كمصفوفة
     localStorage.setItem('roles', JSON.stringify(Array.isArray(roles) ? roles : (roles ? [roles] : [])));
     return { user, roles: Array.isArray(roles) ? roles : (roles ? [roles] : []), token };
   } catch (error) {
@@ -99,14 +100,12 @@ export const verifyEmailThunk = createAsyncThunk('user/verifyEmail', async ({ te
   }
 });
 
-// ✅ FIX: ثاندك جديد لجلب /auth/me وتحديث roles بعد reload
-// استدعيه في App.jsx أو Layout عند mount إذا في token
+// ✅ ثاندك جديد لجلب /auth/me وتحديث roles بعد reload
 export const fetchMe = createAsyncThunk('user/fetchMe', async (_, { rejectWithValue }) => {
   try {
     const token = localStorage.getItem('token');
     if (!token || token === 'undefined') throw new Error('No token');
     const data = await authApi.getMe(token);
-    // data = { user, roles, permissions }
     const roles = Array.isArray(data.roles) ? data.roles : (data.roles ? [data.roles] : []);
     localStorage.setItem('user', JSON.stringify(data.user ?? null));
     localStorage.setItem('roles', JSON.stringify(roles));
@@ -125,7 +124,7 @@ const storedRoles = safeParse(localStorage.getItem('roles'), []);
 const initialState = {
   currentUser: safeParse(localStorage.getItem('user')),
   isAuthenticated: !!localStorage.getItem('token') && localStorage.getItem('token') !== 'undefined',
-  // ✅ FIX: نضمن roles دايماً مصفوفة
+  // ✅ نضمن roles دايماً مصفوفة
   roles: Array.isArray(storedRoles) ? storedRoles : (storedRoles ? [storedRoles] : []),
   loading: false,
   error: null,
@@ -148,6 +147,19 @@ const userSlice = createSlice({
     },
     clearTempToken: (state) => { state.temp_token = null; },
     clearError: (state) => { state.error = null; },
+    reset: () => {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      localStorage.removeItem('roles');
+      return {
+        currentUser: null,
+        isAuthenticated: false,
+        roles: [],
+        loading: false,
+        error: null,
+        temp_token: null,
+      };
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -157,7 +169,7 @@ const userSlice = createSlice({
         state.loading = false;
         state.isAuthenticated = true;
         state.currentUser = payload.user;
-        state.roles = normalizeRoles(payload.roles); // ✅
+        state.roles = normalizeRoles(payload.roles);
       })
       .addCase(loginUser.rejected, (state, { payload }) => { state.loading = false; state.error = payload; })
 
@@ -177,11 +189,10 @@ const userSlice = createSlice({
       // ── fetchMe (GET /auth/me) ──────────────────────
       .addCase(fetchMe.fulfilled, (state, { payload }) => {
         state.currentUser = payload.user;
-        state.roles = normalizeRoles(payload.roles); // ✅ يحدّث roles بعد reload
+        state.roles = normalizeRoles(payload.roles);
         state.isAuthenticated = true;
       })
       .addCase(fetchMe.rejected, (state) => {
-        // لو فشل الـ me (token منتهي مثلاً) — نسجّل خروج ناعم
         state.currentUser = null;
         state.roles = [];
         state.isAuthenticated = false;
@@ -206,7 +217,7 @@ const userSlice = createSlice({
         state.loading = false;
         state.isAuthenticated = true;
         state.currentUser = payload.user;
-        state.roles = normalizeRoles(payload.roles); // ✅
+        state.roles = normalizeRoles(payload.roles);
         state.temp_token = null;
       })
       .addCase(resetPasswordThunk.rejected, (state, { payload }) => { state.loading = false; state.error = payload; })
@@ -218,11 +229,9 @@ const userSlice = createSlice({
       })
       .addCase(resendOTPThunk.fulfilled, (state, { payload }) => {
         state.loading = false;
-        // ✅ نحتفظ بـ temp_token القديم إذا لم يعد الخادم واحداً جديداً
         if (payload?.temp_token) {
           state.temp_token = payload.temp_token;
         }
-        // إذا لم يعد الخادم رمزاً، نترك state.temp_token كما هو (لا نغيره)
         state.error = null;
       })
       .addCase(resendOTPThunk.rejected, (state, { payload }) => {
@@ -236,12 +245,12 @@ const userSlice = createSlice({
         state.loading = false;
         state.isAuthenticated = true;
         state.currentUser = payload.user;
-        state.roles = normalizeRoles(payload.roles); // ✅
+        state.roles = normalizeRoles(payload.roles);
         state.temp_token = null;
       })
       .addCase(verifyEmailThunk.rejected, (state, { payload }) => { state.loading = false; state.error = payload; });
   },
 });
 
-export const { updateUser, clearTempToken, clearError } = userSlice.actions;
+export const { updateUser, clearTempToken, clearError, reset } = userSlice.actions;
 export default userSlice.reducer;

@@ -21,7 +21,7 @@ const CartItem = memo(({ item, onRemove }) => {
       <div className="flex-1 min-w-0">
         <h4 className="font-medium text-sm text-gray-800 dark:text-white truncate">{item.name}</h4>
         <div className="flex justify-between items-center mt-1">
-          <span className="text-primary font-bold text-sm">
+          <span className="text-[var(--color-primary)] font-bold text-sm">
             {item.price} {t('marketplace.currency')}
           </span>
           <button
@@ -65,7 +65,7 @@ const CartSidebar = memo(({ isOpen, onClose }) => {
         {/* Header */}
         <div className="flex justify-between items-center px-6 py-5 border-b border-gray-100 dark:border-gray-800">
           <h2 className="text-xl font-bold flex items-center gap-2 text-gray-800 dark:text-white">
-            <FaShoppingCart className="text-primary" />
+            <FaShoppingCart className="text-[var(--color-primary)]" />
             {t('marketplace.cart')}
           </h2>
           <button
@@ -98,20 +98,22 @@ const CartSidebar = memo(({ isOpen, onClose }) => {
           <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-800">
             <div className="flex justify-between font-bold text-base mb-4 text-gray-800 dark:text-white">
               <span>{t('marketplace.total')}</span>
-              <span className="text-primary">{total.toFixed(2)} {t('marketplace.currency')}</span>
+              <span className="text-[var(--color-primary)]">{total.toFixed(2)} {t('marketplace.currency')}</span>
             </div>
             <div className="flex gap-2">
               <Button
                 text={t('marketplace.checkout')}
-                bgColor="bg-primary hover:bg-primary/90"
+                bgColor="bg-[var(--color-primary)] hover:bg-[var(--color-primary)]/90"
                 textColor="text-white"
                 handler={handleCheckout}
+                className="shadow-[var(--color-primary)]/20 hover:shadow-[var(--color-primary)]/40"
               />
               <Button
                 text={t('marketplace.clearCart')}
                 bgColor="bg-red-500 hover:bg-red-600"
                 textColor="text-white"
                 handler={handleClear}
+                className="shadow-[var(--color-primary)]/20 hover:shadow-[var(--color-primary)]/40"
               />
             </div>
           </div>

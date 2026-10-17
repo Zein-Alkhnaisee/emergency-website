@@ -6,7 +6,6 @@ import { fetchMyComments, editComment, deleteComment, reactToComment, fetchMyRea
 import { confirmToast, showSuccess, showError } from '../utils/toastHelpers';
 import Heading from '../components/Shared/Heading';
 
-// عدد التعليقات المعروضة في الصفحة
 const DISPLAY_LIMIT = 10;
 
 const MyCommentsPage = () => {
@@ -17,13 +16,11 @@ const MyCommentsPage = () => {
   const [editText, setEditText] = useState('');
   const [localComments, setLocalComments] = useState([]);
 
-  // ── جلب التعليقات والتفاعلات ──
   useEffect(() => {
     dispatch(fetchMyComments({ perPage: 100 }));
     dispatch(fetchMyReactions({ perPage: 100 }));
   }, [dispatch]);
 
-  // ── بناء قائمة التعليقات مع التفاعلات ──
   useEffect(() => {
     if (myComments.data) {
       const reactionMap = {};
@@ -45,7 +42,6 @@ const MyCommentsPage = () => {
     }
   }, [myComments.data, myReactions.data]);
 
-  // ── التعديل ──
   const handleEdit = (comment) => {
     setEditingCommentId(comment.id);
     setEditText(comment.content);
@@ -65,7 +61,6 @@ const MyCommentsPage = () => {
     }
   };
 
-  // ── الحذف ──
   const handleDelete = (commentId, articleId) => {
     confirmToast('هل تريد حذف هذا التعليق نهائياً؟', async () => {
       try {
@@ -78,7 +73,6 @@ const MyCommentsPage = () => {
     });
   };
 
-  // ── التفاعل ──
   const handleReaction = async (commentId, type) => {
     const commentIndex = localComments.findIndex(c => c.id === commentId);
     if (commentIndex === -1) return;
@@ -119,14 +113,12 @@ const MyCommentsPage = () => {
     }
   };
 
-  // ── الانتقال إلى المقالة ──
   const goToArticle = (articleId) => {
     if (articleId) {
       navigate(`/post/${articleId}`);
     }
   };
 
-  // ── حالة التحميل ──
   if (myComments.loading && localComments.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh]">
@@ -136,7 +128,6 @@ const MyCommentsPage = () => {
     );
   }
 
-  // ── حالة الخطأ ──
   if (myComments.error && localComments.length === 0) {
     return (
       <div className="container mx-auto p-4 max-w-4xl text-center">
@@ -144,7 +135,7 @@ const MyCommentsPage = () => {
         <p className="text-gray-500 dark:text-gray-400 mb-6">{myComments.error}</p>
         <button
           onClick={() => dispatch(fetchMyComments({ perPage: 100 }))}
-          className="px-5 py-2.5 bg-primary text-white rounded-xl hover:bg-primary/90 transition"
+          className="px-5 py-2.5 bg-primary text-white rounded-xl hover:bg-primary/90 transition-all duration-200 hover:shadow-lg hover:shadow-primary/25"
         >
           إعادة المحاولة
         </button>
@@ -152,7 +143,6 @@ const MyCommentsPage = () => {
     );
   }
 
-  // ── العرض الرئيسي ──
   const displayedComments = localComments.slice(0, DISPLAY_LIMIT);
   const hasMore = localComments.length > DISPLAY_LIMIT;
 
@@ -162,14 +152,14 @@ const MyCommentsPage = () => {
         <Heading title="تعليقاتي" subtitle="جميع التعليقات التي كتبتها على المقالات" />
         <button
           onClick={() => navigate('/')}
-          className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-xl text-sm hover:bg-gray-200 transition"
+          className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-xl text-sm hover:bg-gray-200 dark:hover:bg-gray-600 transition-all duration-200 hover:shadow-md active:scale-[0.98]"
         >
           <FaArrowRight /> رجوع إلى المقالات
         </button>
       </div>
 
       {localComments.length === 0 ? (
-        <div className="text-center py-20 bg-white dark:bg-gray-800 rounded-2xl shadow-sm">
+        <div className="text-center py-20 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
           <div className="text-6xl mb-4">💬</div>
           <p className="text-gray-400">لا توجد تعليقات بعد.</p>
         </div>
@@ -179,7 +169,7 @@ const MyCommentsPage = () => {
             {displayedComments.map(comment => (
               <div
                 key={comment.id}
-                className="border rounded-xl p-4 bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition cursor-pointer"
+                className="border rounded-xl p-4 bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer hover:-translate-y-0.5 border-gray-200 dark:border-gray-700"
                 onClick={() => goToArticle(comment.on?.id || comment.article_id)}
                 role="button"
                 tabIndex={0}
@@ -191,43 +181,37 @@ const MyCommentsPage = () => {
                 }}
               >
                 {editingCommentId === comment.id ? (
-                  // ── وضع التعديل ──
                   <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
                     <textarea
                       value={editText}
                       onChange={e => setEditText(e.target.value)}
                       rows={3}
-                      className="w-full p-2 border rounded-lg dark:bg-gray-700"
+                      className="w-full p-3 border rounded-xl dark:bg-gray-700 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all duration-200"
                       autoFocus
                     />
                     <div className="flex gap-2">
-                      <button onClick={() => handleSaveEdit(comment.id)} className="px-3 py-1 bg-primary text-white rounded-lg text-sm">حفظ</button>
-                      <button onClick={() => setEditingCommentId(null)} className="px-3 py-1 bg-gray-200 rounded-lg text-sm">إلغاء</button>
+                      <button onClick={() => handleSaveEdit(comment.id)} className="px-4 py-1.5 bg-primary text-white rounded-lg text-sm hover:bg-primary/90 transition-all duration-200 hover:shadow-md active:scale-[0.98]">حفظ</button>
+                      <button onClick={() => setEditingCommentId(null)} className="px-4 py-1.5 bg-gray-200 dark:bg-gray-700 rounded-lg text-sm hover:bg-gray-300 dark:hover:bg-gray-600 transition-all duration-200">إلغاء</button>
                     </div>
                   </div>
                 ) : (
-                  // ── عرض التعليق ──
                   <>
                     <p className="text-gray-700 dark:text-gray-300 mb-2">{comment.content}</p>
                     <div className="text-xs text-gray-400 mb-3 flex items-center gap-2 flex-wrap">
                       <span>
-                        في مقال: <span className="font-medium text-primary hover:underline">
-                          {comment.on?.title || `#${comment.on?.id}`}
-                        </span>
+                        في مقال: <span className="font-medium text-primary hover:underline">{comment.on?.title || `#${comment.on?.id}`}</span>
                       </span>
                       <span>•</span>
                       <span>{new Date(comment.created_at).toLocaleDateString('ar-EG')}</span>
-                      <span className="flex items-center gap-1 text-primary">
-                        <FaEye className="text-[10px]" /> اضغط للعرض
-                      </span>
+                      <span className="flex items-center gap-1 text-primary"><FaEye className="text-[10px]" /> اضغط للعرض</span>
                     </div>
 
                     <div className="flex items-center justify-between mt-2" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center gap-3">
                         <button
                           onClick={() => handleReaction(comment.id, 'like')}
-                          className={`flex items-center gap-1 text-xs transition ${
-                            comment.user_reaction === 'like' ? 'text-rose-500' : 'text-gray-400 hover:text-rose-400'
+                          className={`flex items-center gap-1 text-xs transition-all duration-200 ${
+                            comment.user_reaction === 'like' ? 'text-rose-500 scale-110' : 'text-gray-400 hover:text-rose-400 hover:scale-110'
                           }`}
                         >
                           {comment.user_reaction === 'like' ? <FaHeart /> : <FaRegHeart />}
@@ -235,8 +219,8 @@ const MyCommentsPage = () => {
                         </button>
                         <button
                           onClick={() => handleReaction(comment.id, 'dislike')}
-                          className={`flex items-center gap-1 text-xs transition ${
-                            comment.user_reaction === 'dislike' ? 'text-gray-600 dark:text-gray-300' : 'text-gray-400 hover:text-gray-500'
+                          className={`flex items-center gap-1 text-xs transition-all duration-200 ${
+                            comment.user_reaction === 'dislike' ? 'text-gray-600 dark:text-gray-300 scale-110' : 'text-gray-400 hover:text-gray-500 hover:scale-110'
                           }`}
                         >
                           {comment.user_reaction === 'dislike' ? <FaThumbsDown /> : <FaRegThumbsDown />}
@@ -245,10 +229,10 @@ const MyCommentsPage = () => {
                       </div>
 
                       <div className="flex gap-2">
-                        <button onClick={() => handleEdit(comment)} className="text-blue-500 hover:text-blue-700 text-xs flex items-center gap-1">
+                        <button onClick={() => handleEdit(comment)} className="text-blue-500 hover:text-blue-700 text-xs flex items-center gap-1 transition-all duration-200 hover:scale-105">
                           <FaEdit size={12} /> تعديل
                         </button>
-                        <button onClick={() => handleDelete(comment.id, comment.on?.id)} className="text-red-500 hover:text-red-700 text-xs flex items-center gap-1">
+                        <button onClick={() => handleDelete(comment.id, comment.on?.id)} className="text-red-500 hover:text-red-700 text-xs flex items-center gap-1 transition-all duration-200 hover:scale-105">
                           <FaTrash size={12} /> حذف
                         </button>
                       </div>
@@ -259,12 +243,11 @@ const MyCommentsPage = () => {
             ))}
           </div>
 
-          {/* ── زر عرض المزيد ── */}
           {hasMore && (
-            <div className="text-center mt-8">
+            <div className="text-center mt-8 animate-fade-up">
               <Link
                 to={`/all-comments`}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-xl hover:bg-primary/90 transition font-medium shadow-md hover:shadow-lg"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-xl hover:bg-primary/90 transition-all duration-200 font-medium shadow-md hover:shadow-lg hover:shadow-primary/25 active:scale-[0.98]"
               >
                 عرض جميع التعليقات ({localComments.length})
               </Link>

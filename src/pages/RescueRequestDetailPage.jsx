@@ -1,22 +1,31 @@
 // src/pages/RescueRequestDetailPage.jsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   fetchRescueRequestDetail,
-  acceptRescueRequest,
-  rejectRescueRequest,
   clearDetail,
+  rejectRescueRequest,
 } from '../redux/slices/rescueRequestsSlice';
+import {
+  acceptRescueWithTracking,
+  clearTracking,
+  setParticipationResolved,
+} from '../redux/slices/trackingSlice';
+import { resolveMyCase, fetchMyActiveStatus } from '../redux/slices/emergencyCasesSlice'; // ✅ تم إزالة clearActiveStatus
 import { showSuccess, showError, confirmToast } from '../utils/toastHelpers';
-import Heading from '../components/Shared/Heading';
+import TrackingMap from '../components/Tracking/TrackingMap';
+import RescuerTracker from '../components/Tracking/RescuerTracker';
+import ReportModal from '../components/Reports/ReportModal';
 import {
   FaFire, FaCar, FaHeartbeat, FaExclamationTriangle,
   FaMapMarkerAlt, FaArrowRight, FaUser, FaUsers,
   FaCheckCircle, FaTimesCircle, FaClock, FaHourglassHalf,
-  FaCheck, FaTimes, // ✅ الأيقونات الجديدة للأزرار
+  FaCheck, FaTimes, FaStopCircle, FaDotCircle,
+  FaFlag,
 } from 'react-icons/fa';
+import { formatEmergencyDate } from '../utils/dateHelpers';
 
 const CASE_ICON = {
   fire: <FaFire className="text-red-500 text-4xl" />,
@@ -51,29 +60,12 @@ const STATUS_LABEL = {
   false: 'ملغية',
 };
 const STATUS_COLOR = {
-  new: 'text-blue-600 bg-blue-50',
-  in_progress: 'text-yellow-600 bg-yellow-50',
-  completed_quota: 'text-green-600 bg-green-50',
-  resolved: 'text-gray-600 bg-gray-50',
-  closed: 'text-gray-500 bg-gray-100',
-  false: 'text-red-600 bg-red-50',
-};
-
-// دالة تنسيق التاريخ بدون date-fns
-const formatDate = (dateStr) => {
-  if (!dateStr) return '';
-  try {
-    const d = new Date(dateStr);
-    return d.toLocaleString('ar-EG', {
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  } catch {
-    return '';
-  }
+  new: 'text-blue-600 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-400',
+  in_progress: 'text-yellow-600 bg-yellow-50 dark:bg-yellow-900/30 dark:text-yellow-400',
+  completed_quota: 'text-green-600 bg-green-50 dark:bg-green-900/30 dark:text-green-400',
+  resolved: 'text-gray-600 bg-gray-50 dark:bg-gray-700',
+  closed: 'text-gray-500 bg-gray-100 dark:bg-gray-700',
+  false: 'text-red-600 bg-red-50 dark:bg-red-900/30 dark:text-red-400',
 };
 
 const RescueRequestDetailPage = () => {
@@ -81,32 +73,119 @@ const RescueRequestDetailPage = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { id } = useParams();
+  const emergencyId = parseInt(id);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportTarget, setReportTarget] = useState(null);
+
+  const { gpsLocation } = useSelector(state => state.emergencyGroups || {});
+  const { currentUser } = useSelector(state => state.user);
+
   const { detail, loading, actionLoading, error } = useSelector(s => s.rescueRequests || {});
+  const { isAuthenticated } = useSelector(s => s.user);
+  const { activeStatus } = useSelector(s => s.emergencyCases || {});
   const [actionInProgress, setActionInProgress] = useState(false);
 
+  const reporterId = detail?.reporter?.id ? Number(detail.reporter.id) : null;
+  console.log('🔍 detail object:', detail);
+  const isParticipant = !!detail?.my_participation;
+  // استخراج المشاركين من الـ detail
+  const participations = detail?.participations || detail?.participants || detail?.rescuer_participations || detail?.members || [];
+
+  // ✅ تحديد مسار التوجيه بناءً على دور المستخدم في الحالة النشطة
+  const getActiveCasePath = () => {
+    if (!activeStatus?.has_active_emergency) return '/my-case';
+    if (activeStatus.active_role === 'CREATOR') {
+      return '/my-case';
+    } else if (activeStatus.active_role === 'PARTICIPANT') {
+      return `/emergency/cases/${activeStatus.active_emergency_id}`;
+    }
+    return '/my-case';
+  };
+
   useEffect(() => {
-    if (id) {
-      dispatch(fetchRescueRequestDetail(parseInt(id)));
+    if (emergencyId) {
+      dispatch(fetchRescueRequestDetail(emergencyId));
+      dispatch(fetchMyActiveStatus());
     }
     return () => {
       dispatch(clearDetail());
+      dispatch(clearTracking());
+      // ✅ لا نمسح activeStatus لأنها state عامة يستخدمها LiveNotificationCenter
     };
-  }, [dispatch, id]);
+  }, [dispatch, emergencyId]);
+
+  const getCurrentPosition = useCallback(() => {
+    return new Promise((resolve) => {
+      if (!navigator.geolocation) {
+        resolve(null);
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          resolve({
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+            accuracy_m: pos.coords.accuracy || 10,
+            recorded_at: new Date().toISOString(),
+          });
+        },
+        (err) => {
+          console.warn('Geolocation error:', err);
+          resolve(null);
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 }
+      );
+    });
+  }, []);
 
   const handleAccept = async () => {
-    if (!detail) return;
-    confirmToast(t('emergency.confirmAccept'), async () => {
-      setActionInProgress(true);
-      try {
-        await dispatch(acceptRescueRequest(detail.id)).unwrap();
-        showSuccess(t('emergency.acceptSuccess'));
-        dispatch(fetchRescueRequestDetail(detail.id));
-      } catch (err) {
+    if (!detail || !isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+
+    if (activeStatus?.has_active_emergency) {
+      const role = activeStatus.active_role;
+      const msg = role === 'CREATOR'
+        ? 'لديك حالة طوارئ نشطة كمُبلّغ. يرجى إنهاؤها أولاً.'
+        : 'لديك مشاركة نشطة في حالة طوارئ أخرى. يرجى إنهاؤها أولاً.';
+      confirmToast(
+        `${msg} هل تريد الذهاب إلى حالتك النشطة؟`,
+        () => navigate(getActiveCasePath()),
+        'اذهب إلى حالتي',
+        'إلغاء'
+      );
+      return;
+    }
+
+    let originData = null;
+    const pos = await getCurrentPosition();
+    if (pos) {
+      originData = pos;
+    } else {
+      console.warn('Could not get location, accepting without origin');
+    }
+
+    setActionInProgress(true);
+    try {
+      const result = await dispatch(acceptRescueWithTracking({
+        emergencyId: detail.id,
+        originData,
+      })).unwrap();
+      showSuccess(t('emergency.acceptSuccess'));
+      dispatch(fetchRescueRequestDetail(detail.id));
+      dispatch(fetchMyActiveStatus());
+    } catch (err) {
+      console.error('❌ Accept error:', err);
+      if (typeof err === 'string' && err.includes('active emergency')) {
+        showError('لا يمكنك قبول حالة جديدة لأن لديك حالة طوارئ نشطة. يرجى إنهاؤها أولاً.');
+        navigate(getActiveCasePath());
+      } else {
         showError(err || t('emergency.acceptError'));
-      } finally {
-        setActionInProgress(false);
       }
-    });
+    } finally {
+      setActionInProgress(false);
+    }
   };
 
   const handleReject = async () => {
@@ -119,6 +198,24 @@ const RescueRequestDetailPage = () => {
         dispatch(fetchRescueRequestDetail(detail.id));
       } catch (err) {
         showError(err || t('emergency.rejectError'));
+      } finally {
+        setActionInProgress(false);
+      }
+    });
+  };
+
+  const handleResolveParticipation = async () => {
+    if (!detail) return;
+    confirmToast(t('emergency.confirmResolveParticipation'), async () => {
+      setActionInProgress(true);
+      try {
+        await dispatch(resolveMyCase(detail.id)).unwrap();
+        showSuccess(t('emergency.participationResolvedSuccess'));
+        dispatch(setParticipationResolved());
+        dispatch(fetchRescueRequestDetail(detail.id));
+        dispatch(fetchMyActiveStatus());
+      } catch (err) {
+        showError(err || t('emergency.participationResolveError'));
       } finally {
         setActionInProgress(false);
       }
@@ -140,7 +237,7 @@ const RescueRequestDetailPage = () => {
         <p className="text-red-500">{error}</p>
         <button
           onClick={() => navigate('/emergency/rescue-requests')}
-          className="mt-4 px-6 py-2 bg-primary text-white rounded-xl"
+          className="mt-4 px-6 py-2 bg-primary text-white rounded-xl hover:bg-primary/90 transition-all duration-200 hover:shadow-lg hover:shadow-primary/25"
         >
           {t('common.back')}
         </button>
@@ -151,7 +248,7 @@ const RescueRequestDetailPage = () => {
   if (!detail) return null;
 
   const {
-    id: emergencyId,
+    id: emergencyIdNum,
     case_type,
     custom_text,
     severity,
@@ -172,17 +269,49 @@ const RescueRequestDetailPage = () => {
   const isPending = notification?.is_responded === false && can_respond;
   const responded = notification?.is_responded === true;
   const response = notification?.response;
+  const isParticipantActive = my_participation && !my_participation.is_resolved_by_user;
+
+  const destLocation = location_lat && location_lng
+    ? { lat: parseFloat(location_lat), lng: parseFloat(location_lng) }
+    : null;
+
+  // ✅ مسار زر "عرض حالتي"
+  const activeCasePath = getActiveCasePath();
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-3xl">
       <button
         onClick={() => navigate(-1)}
-        className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-xl text-sm hover:bg-gray-200 transition mb-4"
+        className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-xl text-sm hover:bg-gray-200 dark:hover:bg-gray-600 transition-all duration-200 hover:shadow-md active:scale-[0.98]"
       >
         <FaArrowRight /> {t('common.back')}
       </button>
 
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-md p-6 border border-gray-100 dark:border-gray-700">
+      {activeStatus?.has_active_emergency && (
+        <div className="mt-4 mb-4 p-4 rounded-2xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 flex items-center justify-between flex-wrap gap-3 animate-fade-up">
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">⚠️</span>
+            <div>
+              <p className="text-sm font-medium text-amber-700 dark:text-amber-300">
+                {activeStatus.active_role === 'CREATOR'
+                  ? 'لديك حالة طوارئ نشطة كمُبلّغ'
+                  : 'لديك مشاركة نشطة في حالة طوارئ أخرى'}
+              </p>
+              <p className="text-xs text-amber-500 dark:text-amber-400">
+                {t('emergency.activeCaseId')}: #{activeStatus.active_emergency_id}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => navigate(activeCasePath)}
+            className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-sm font-medium transition-all duration-200 hover:shadow-lg active:scale-[0.98]"
+          >
+            {t('emergency.viewMyCase')}
+          </button>
+        </div>
+      )}
+
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-md p-6 border border-gray-100 dark:border-gray-700 transition-shadow duration-300 hover:shadow-xl animate-fade-up">
         <div className="flex items-start gap-4 mb-6">
           <span className="text-5xl">{CASE_ICON[case_type] || CASE_ICON.other}</span>
           <div className="flex-1">
@@ -196,7 +325,7 @@ const RescueRequestDetailPage = () => {
               <span className={`text-sm ${SEVERITY_COLOR[severity] || 'text-gray-500'}`}>
                 {t('emergency.severityLevel')}: {SEVERITY_LABEL[severity] || severity}
               </span>
-              <span className="text-sm text-gray-400">{formatDate(created_at)}</span>
+              <span className="text-sm text-gray-400">{formatEmergencyDate(created_at)}</span>
             </div>
           </div>
         </div>
@@ -244,55 +373,137 @@ const RescueRequestDetailPage = () => {
           </div>
         </div>
 
-        {/* ✅ أزرار القبول/الرفض بأيقونات بدلاً من ✅ و ❌ */}
-        {isPending && (
-          <div className="flex flex-col sm:flex-row gap-3 mb-6">
+        {/* خريطة التتبع */}
+        <div className="mb-6">
+          <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+            <FaDotCircle className="text-primary animate-pulse" />
+            {t('emergency.trackingMap') || 'تتبع المنقذين'}
+          </h2>
+          <TrackingMap
+            emergencyId={emergencyIdNum}
+            reporterId={reporterId}
+            isParticipant={true}
+            emergencyLocation={destLocation}
+            userGpsLocation={gpsLocation}
+          />
+        </div>
+
+        <div className="flex flex-wrap gap-3 mb-6">
+
+          {isPending && !activeStatus?.has_active_emergency && (
+            <>
+              <button
+                onClick={handleAccept}
+                disabled={actionInProgress || actionLoading}
+                className="flex-1 bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-xl font-medium transition-all duration-200 hover:shadow-lg hover:shadow-green-500/30 active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {actionInProgress ? (
+                  t('common.loading')
+                ) : (
+                  <>
+                    <FaCheck className="text-white" />
+                    {t('emergency.accept')}
+                  </>
+                )}
+              </button>
+              <button
+                onClick={handleReject}
+                disabled={actionInProgress || actionLoading}
+                className="flex-1 bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-xl font-medium transition-all duration-200 hover:shadow-lg hover:shadow-red-500/30 active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {actionInProgress ? (
+                  t('common.loading')
+                ) : (
+                  <>
+                    <FaTimes className="text-white" />
+                    {t('emergency.reject')}
+                  </>
+                )}
+              </button>
+            </>
+          )}
+
+          {isParticipantActive && (
             <button
-              onClick={handleAccept}
+              onClick={handleResolveParticipation}
               disabled={actionInProgress || actionLoading}
-              className="flex-1 bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-xl font-medium transition disabled:opacity-50 flex items-center justify-center gap-2"
+              className="flex-1 bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-xl font-medium transition-all duration-200 hover:shadow-lg hover:shadow-orange-500/30 active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {actionInProgress ? (
                 t('common.loading')
               ) : (
                 <>
-                  <FaCheck className="text-white" />
-                  {t('emergency.accept')}
+                  <FaStopCircle className="text-white" />
+                  {t('emergency.endParticipation')}
                 </>
               )}
             </button>
+          )}
+          {/* ── قائمة المشاركين مع زر إبلاغ ── */}
+          {participations.length > 0 && detail?.reporter?.id === currentUser?.id && (
+            <div className="mt-6 border-t border-gray-200 dark:border-gray-700 pt-4">
+              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+                <FaUsers className="text-primary" />
+                {t('emergency.participants') || 'المشاركون'}
+              </h3>
+              <div className="space-y-2">
+                {participations
+                  .filter(p => p.user_id !== currentUser?.id) // استثناء نفسي
+                  .map((p) => (
+                    <div key={p.id} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded-xl">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">{p.user?.name || 'منقذ'}</span>
+                        {p.is_resolved_by_user && (
+                          <span className="text-xs text-green-600 dark:text-green-400">(أنهى مشاركته)</span>
+                        )}
+                      </div>
+                      {/* ✅ زر إبلاغ عن المشاركة الكاذبة */}
+                      {!p.is_resolved_by_user && (
+                        <button
+                          onClick={() => {
+                            setReportTarget({
+                              reportedId: p.user_id,
+                              reportedName: p.user?.name || 'منقذ',
+                              rescueParticipationId: p.id,
+                            });
+                            setShowReportModal(true);
+                          }}
+                          className="text-red-500 hover:text-red-700 text-xs flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
+                        >
+                          <FaFlag className="text-[10px]" />
+                          {t('reports.report')}
+                        </button>
+                      )}
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
+
+          {isParticipantActive && (
             <button
-              onClick={handleReject}
-              disabled={actionInProgress || actionLoading}
-              className="flex-1 bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-xl font-medium transition disabled:opacity-50 flex items-center justify-center gap-2"
+              onClick={() => setShowReportModal(true)}
+              className="flex-1 bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-xl font-medium transition-all duration-200 hover:shadow-lg hover:shadow-red-500/30 active:scale-[0.98] flex items-center justify-center gap-2"
             >
-              {actionInProgress ? (
-                t('common.loading')
-              ) : (
-                <>
-                  <FaTimes className="text-white" />
-                  {t('emergency.reject')}
-                </>
-              )}
+              <FaFlag className="text-sm" />
+              {t('reports.reportFakeRescue')}
             </button>
-          </div>
-        )}
+          )}
+        </div>
 
         {responded && (
-          <div className={`p-4 rounded-xl mb-4 ${
-            response === 'accepted'
-              ? 'bg-green-50 dark:bg-green-900/20 border border-green-200'
-              : 'bg-red-50 dark:bg-red-900/20 border border-red-200'
-          }`}>
-            <p className={`flex items-center gap-2 font-medium ${
-              response === 'accepted' ? 'text-green-700' : 'text-red-700'
+          <div className={`p-4 rounded-xl mb-4 ${response === 'accepted'
+            ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'
+            : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'
             }`}>
+            <p className={`flex items-center gap-2 font-medium ${response === 'accepted' ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'
+              }`}>
               {response === 'accepted' ? <FaCheckCircle /> : <FaTimesCircle />}
               {response === 'accepted' ? t('emergency.youAccepted') : t('emergency.youRejected')}
             </p>
             {notification?.responded_at && (
               <p className="text-xs text-gray-400 mt-1">
-                {formatDate(notification.responded_at)}
+                {formatEmergencyDate(notification.responded_at)}
               </p>
             )}
           </div>
@@ -311,6 +522,27 @@ const RescueRequestDetailPage = () => {
           </div>
         )}
       </div>
+
+      {isParticipantActive && (
+        <RescuerTracker
+          emergencyId={emergencyIdNum}
+          isActiveParticipant={isParticipantActive}
+          onOriginRecorded={(origin) => console.log('Origin recorded:', origin)}
+          onPingSent={(ping) => console.log('Ping sent:', ping)}
+        />
+      )}
+
+      <ReportModal
+        isOpen={showReportModal}
+        onClose={() => {
+          setShowReportModal(false);
+          setReportTarget(null);
+        }}
+        reportedId={reportTarget?.reportedId || detail?.reporter?.id}
+        reportedName={reportTarget?.reportedName || detail?.reporter?.name || t('emergency.unknown')}
+        rescueParticipationId={reportTarget?.rescueParticipationId || detail?.my_participation?.id}
+        emergencyId={detail?.id}
+      />
     </div>
   );
 };

@@ -1,10 +1,7 @@
-// vite.config.js
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ mode }) => {
-  // تحديد الـ base بناءً على متغير البيئة أو الـ mode
-  // في Netlify، نضبط VITE_BASE_URL في إعدادات البيئة
   const baseUrl = process.env.VITE_BASE_URL || 
                   (mode === 'github-pages' ? '/emergency-website/' : '/');
 
@@ -40,6 +37,7 @@ export default defineConfig(({ mode }) => {
       rollupOptions: {
         output: {
           manualChunks(id) {
+            // ── الأساسيات ──
             if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/')) {
               return 'react-core';
             }
@@ -67,18 +65,86 @@ export default defineConfig(({ mode }) => {
             if (id.includes('react-scroll') || id.includes('react-responsive')) {
               return 'ui-libs';
             }
+
+            // ── إضافات جديدة ──
+            if (id.includes('framer-motion')) {
+              return 'framer-motion';
+            }
+            if (id.includes('react-hook-form')) {
+              return 'form';
+            }
+            if (id.includes('axios')) {
+              return 'axios';
+            }
+            if (id.includes('date-fns')) {
+              return 'date-fns';
+            }
+            if (id.includes('geolib')) {
+              return 'geolib';
+            }
+            if (id.includes('react-lazy-load-image-component')) {
+              return 'lazy-images';
+            }
+
+            // ── تقسيم الصفحات الكبيرة ──
+            if (id.includes('/src/pages/EmergencyPage')) {
+              return 'page-emergency';
+            }
+            if (id.includes('/src/pages/ProfilePage')) {
+              return 'page-profile';
+            }
+            if (id.includes('/src/pages/PostsPage') || id.includes('/src/pages/AllArticlesPage')) {
+              return 'page-posts';
+            }
+            if (id.includes('/src/pages/ServicesPage')) {
+              return 'page-services';
+            }
+            if (id.includes('/src/pages/CoursesPage')) {
+              return 'page-courses';
+            }
+            if (id.includes('/src/pages/MarketplacePage')) {
+              return 'page-marketplace';
+            }
+            if (id.includes('/src/pages/TrustVerificationPage')) {
+              return 'page-trust';
+            }
+            if (id.includes('/src/pages/RoleRequestsPage')) {
+              return 'page-roles';
+            }
+            if (id.includes('/src/pages/NotificationsPage')) {
+              return 'page-notifications';
+            }
+            if (id.includes('/src/pages/ChatPage') || id.includes('/src/pages/EmergencyChatPage')) {
+              return 'page-chat';
+            }
+            if (id.includes('/src/pages/MyCasePage') || id.includes('/src/pages/CaseDetailPage')) {
+              return 'page-cases';
+            }
+            if (id.includes('/src/pages/RescueRequestsPage') || id.includes('/src/pages/RescueRequestDetailPage')) {
+              return 'page-rescue';
+            }
+
+            // ── أي مكتبة أخرى غير معروفة → `vendor` ──
             if (id.includes('node_modules')) {
               return 'vendor';
             }
           },
           chunkFileNames: 'assets/js/[name]-[hash].js',
           entryFileNames: 'assets/js/[name]-[hash].js',
-          assetFileNames: 'assets/[ext]/[name]-[hash].[ext]',
+          // ✅ تحسين أسماء ملفات الـ CSS لتقليل الحجم
+          assetFileNames: (assetInfo) => {
+            if (assetInfo.name?.endsWith('.css')) {
+              return 'assets/css/[name]-[hash].[ext]';
+            }
+            return 'assets/[ext]/[name]-[hash].[ext]';
+          },
         },
       },
       chunkSizeWarningLimit: 500,
       cssCodeSplit: true,
       assetsInlineLimit: 4096,
+      // ✅ تحسين الـ CSS (تقليل الحجم)
+      cssTarget: 'chrome61',
     },
 
     optimizeDeps: {
@@ -93,6 +159,15 @@ export default defineConfig(({ mode }) => {
         'react-hot-toast',
         'leaflet',
         'react-leaflet',
+        'framer-motion',
+        'react-hook-form',
+        'axios',
+        'date-fns',
+        'aos',
+        'react-scroll',
+        'react-responsive',
+        'geolib',
+        'react-lazy-load-image-component', // ✅ إضافة
       ],
     },
   };

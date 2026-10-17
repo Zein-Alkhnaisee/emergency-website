@@ -1,3 +1,4 @@
+// src/pages/ProfilePage.jsx
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
@@ -17,7 +18,6 @@ import Button from '../components/Shared/Button';
 import Heading from '../components/Shared/Heading';
 import LocationPickerMap from '../components/Profile/LocationPickerMap';
 
-// ── Reverse geocode helper ─────────────────────────────────────
 const fetchAddressFromCoords = async (lat, lng) => {
   try {
     const res = await fetch(
@@ -34,7 +34,6 @@ const fetchAddressFromCoords = async (lat, lng) => {
   }
 };
 
-// ── Field wrapper ──────────────────────────────────────────────
 const Field = ({ label, children }) => (
   <div>
     <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{label}</label>
@@ -43,13 +42,12 @@ const Field = ({ label, children }) => (
 );
 
 const inputCls = (disabled) =>
-  `w-full px-3 py-2.5 text-sm rounded-xl border transition
+  `w-full px-3 py-2.5 text-sm rounded-xl border transition-all duration-200
    ${disabled
      ? 'bg-gray-50 dark:bg-gray-700/50 border-gray-100 dark:border-gray-700 text-gray-500 cursor-default'
-     : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/40'
+     : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent'
    }`;
 
-// ── Main ───────────────────────────────────────────────────────
 const ProfilePage = () => {
   const { t } = useTranslation();
   const dispatch = useDispatch();
@@ -82,24 +80,38 @@ const ProfilePage = () => {
   const isTrusted = roles?.includes('trusted') || currentUser?.role === 'trusted';
   const groupId = currentGroup?.group_id;
 
-  // ── جلب الملف الشخصي والموقع ──────────────────────────────
+  // ✅ دالة للتحقق مما إذا كان الملف الشخصي فارغاً
+  const isProfileEmpty = useCallback((profileData) => {
+    if (!profileData) return true;
+    // التحقق من الحقول الأساسية التي يملؤها المستخدم بنفسه
+    const { phone, gender, country, city, bio } = profileData;
+    const hasRealData = phone || gender || country || city || bio;
+    return !hasRealData;
+  }, []);
+
+  // جلب الملف الشخصي عند التحميل
   useEffect(() => {
     dispatch(fetchMyProfile());
-    dispatch(fetchMyLocation());
   }, [dispatch]);
 
-  // ── جلب مجموعتي الحقيقية (لا نعتمد على أن صفحة أخرى جلبتها مسبقاً) ──
-  // هذا هو سبب المشكلة: عند الدخول مباشرة لصفحة البروفايل (أو بعد
-  // تحديث الصفحة) كانت currentGroup فارغة، فكان الكود يستخدم قيمة
-  // وهمية ثابتة (1) بدل المجموعة الحقيقية، فتظهر الصفحة "لا توجد تقييمات"
-  // رغم أن التقييم محفوظ فعلياً على المجموعة الصحيحة.
+  // جلب الموقع فقط إذا كان هناك ملف شخصي حقيقي
+  useEffect(() => {
+    if (profile && !isProfileEmpty(profile)) {
+      dispatch(fetchMyLocation());
+    } else {
+      // إذا لم يكن هناك ملف، نضبط الموقع على null
+      // لكن نحتفظ بـ mapInitLoc للخريطة
+    }
+  }, [dispatch, profile, isProfileEmpty]);
+
+  // جلب مجموعة الطوارئ إذا كان المستخدم موثّقاً
   useEffect(() => {
     if (isTrusted && !groupId) {
       dispatch(fetchMyGroup());
     }
   }, [dispatch, isTrusted, groupId]);
 
-  // ── جلب إحصاءات التقييم (فقط بعد توفر groupId الحقيقي) ──
+  // جلب إحصاءات التقييمات
   useEffect(() => {
     if (!isTrusted || !groupId) return;
     setStatsLoading(true);
@@ -108,9 +120,9 @@ const ProfilePage = () => {
     });
   }, [dispatch, isTrusted, groupId]);
 
-  // ── مزامنة البيانات مع النموذج ────────────────────────────
+  // تحديث الفورم عند جلب الملف الشخصي
   useEffect(() => {
-    if (profile) {
+    if (profile && !isProfileEmpty(profile)) {
       setForm({
         phone: profile.phone || '',
         gender: profile.gender || '',
@@ -125,19 +137,20 @@ const ProfilePage = () => {
       setIsEditing(false);
       setShowCreateForm(false);
     } else {
-      setShowCreateForm(false);
-      setIsEditing(false);
+      // لا يوجد ملف شخصي → نعرض شاشة الإنشاء
+      setShowCreateForm(true);
+      setIsEditing(true);
       setForm({
         phone: '', gender: '', country: '', state: '', city: '', bio: '',
         is_location_public: false, is_phone_public: false,
       });
       setAvatarPreview(null);
     }
-  }, [profile]);
+  }, [profile, isProfileEmpty]);
 
-  // ── مزامنة الموقع ─────────────────────────────────────────
+  // تحديث موقع الخريطة
   useEffect(() => {
-    if (loc?.latitude) {
+    if (profile && !isProfileEmpty(profile) && loc?.latitude) {
       const lat = parseFloat(loc.latitude);
       const lng = parseFloat(loc.longitude);
       setLocForm({
@@ -148,15 +161,16 @@ const ProfilePage = () => {
         city: loc.city || '',
       });
       setMapInitLoc([lat, lng]);
-    } else {
+    } else if (!profile || isProfileEmpty(profile)) {
+      // إذا لم يكن هناك ملف، نستخدم موقع GPS كخيار (ولكن لا نحفظه)
       navigator.geolocation?.getCurrentPosition(
         (pos) => {
           const coords = [pos.coords.latitude, pos.coords.longitude];
           setMapInitLoc(coords);
           setLocForm(prev => ({
             ...prev,
-            latitude: coords[0],
-            longitude: coords[1],
+            latitude: coords[0].toString(),
+            longitude: coords[1].toString(),
           }));
           reverseGeocode(coords[0], coords[1]);
         },
@@ -164,14 +178,7 @@ const ProfilePage = () => {
         { enableHighAccuracy: false, timeout: 5000 }
       );
     }
-  }, [loc]);
-
-  // ── تحديث حالة isRatable من myStats ──────────────────────
-  useEffect(() => {
-    if (myStats?.user) {
-      setIsRatable(myStats.user.is_ratable ?? false);
-    }
-  }, [myStats]);
+  }, [profile, loc, isProfileEmpty]);
 
   const reverseGeocode = useCallback(async (lat, lng) => {
     setIsFetchingAddr(true);
@@ -185,7 +192,7 @@ const ProfilePage = () => {
   }, []);
 
   const handleMapSelect = useCallback(async (coords) => {
-    setLocForm(prev => ({ ...prev, latitude: coords[0], longitude: coords[1] }));
+    setLocForm(prev => ({ ...prev, latitude: coords[0].toString(), longitude: coords[1].toString() }));
     await reverseGeocode(coords[0], coords[1]);
   }, [reverseGeocode]);
 
@@ -197,19 +204,20 @@ const ProfilePage = () => {
   const handleProfileSave = async () => {
     setSavingProfile(true);
     let result;
-    if (profile) {
+    if (profile && !isProfileEmpty(profile)) {
       result = await dispatch(updateProfile({ updates: form, avatarFile }));
     } else {
       result = await dispatch(createProfile({ profileData: form, avatarFile }));
     }
     setSavingProfile(false);
     if (updateProfile.fulfilled.match(result) || createProfile.fulfilled.match(result)) {
-      showSuccess(profile ? t('profile.updateSuccess') : t('profile.createSuccess'));
+      showSuccess(profile && !isProfileEmpty(profile) ? t('profile.updateSuccess') : t('profile.createSuccess'));
       setIsEditing(false);
       setShowCreateForm(false);
       setAvatarFile(null);
+      dispatch(fetchMyProfile());
     } else {
-      showError(result.payload);
+      showError(result.payload || 'حدث خطأ أثناء حفظ الملف الشخصي');
     }
   };
 
@@ -220,6 +228,7 @@ const ProfilePage = () => {
         showSuccess(t('profile.deleteSuccess'));
         setIsEditing(false);
         setShowCreateForm(false);
+        dispatch(fetchMyProfile());
       } else {
         showError(result.payload);
       }
@@ -242,8 +251,9 @@ const ProfilePage = () => {
     setSavingLoc(false);
     if (addLocation.fulfilled.match(result)) {
       showSuccess(t('profile.locationSaved'));
+      dispatch(fetchMyLocation());
     } else {
-      showError(result.payload);
+      showError(result.payload || 'حدث خطأ أثناء حفظ الموقع');
     }
   };
 
@@ -251,6 +261,7 @@ const ProfilePage = () => {
     const result = await dispatch(updateLocationVisibility(isPublic));
     if (updateLocationVisibility.fulfilled.match(result)) {
       showSuccess(isPublic ? t('profile.locationPublic') : t('profile.locationPrivate'));
+      dispatch(fetchMyLocation());
     } else {
       showError(result.payload);
     }
@@ -267,9 +278,7 @@ const ProfilePage = () => {
     }
   };
 
-  // ── عرض إحصاءات التقييم (نجوم) ──────────────────────────────
   const renderRatingStats = () => {
-    // ✅ دائماً نعرض القسم للمستخدمين الموثقين
     if (!isTrusted) return null;
 
     const hasStats = myStats && myStats.total > 0;
@@ -278,24 +287,23 @@ const ProfilePage = () => {
     const avgPercent = myStats?.average_percent || 0;
     const qualifiesAdmin = myStats?.qualifies_admin || false;
 
-    // حساب النجوم
     const avg = average || 0;
     const fullStars = Math.floor(avg);
     const hasHalfStar = avg % 1 >= 0.5;
     const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
 
     return (
-      <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-700/30 rounded-xl border border-gray-200 dark:border-gray-600">
+      <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-700/30 rounded-xl border border-gray-200 dark:border-gray-600 animate-fade-up">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300">
             {t('profile.ratingStats')}
           </h3>
           <button
             onClick={handleToggleRatable}
-            className={`text-xs px-3 py-1 rounded-full transition ${
+            className={`text-xs px-3 py-1 rounded-full transition-all duration-200 ${
               isRatable
-                ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                ? 'bg-green-100 text-green-700 hover:bg-green-200 hover:scale-105'
+                : 'bg-gray-200 text-gray-600 hover:bg-gray-300 hover:scale-105'
             }`}
           >
             {isRatable ? t('profile.ratableOn') : t('profile.ratableOff')}
@@ -315,7 +323,7 @@ const ProfilePage = () => {
             <div className="flex items-center gap-6 flex-wrap">
               <div className="flex items-center gap-2">
                 <span className="text-sm text-gray-500">{t('profile.totalRatings')}</span>
-                <span className="font-bold text-lg">{total}</span>
+                <span className="font-bold text-lg text-gray-800 dark:text-white">{total}</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-gray-500">{t('profile.averageRating')}</span>
@@ -323,16 +331,15 @@ const ProfilePage = () => {
               </div>
               <div className="flex items-center gap-1">
                 {[...Array(fullStars)].map((_, i) => (
-                  <FaStar key={`full-${i}`} className="text-yellow-400 text-lg" />
+                  <FaStar key={`full-${i}`} className="text-yellow-400 text-lg drop-shadow-sm" />
                 ))}
-                {hasHalfStar && <FaStarHalfAlt className="text-yellow-400 text-lg" />}
+                {hasHalfStar && <FaStarHalfAlt className="text-yellow-400 text-lg drop-shadow-sm" />}
                 {[...Array(emptyStars)].map((_, i) => (
                   <FaRegStar key={`empty-${i}`} className="text-gray-300 dark:text-gray-500 text-lg" />
                 ))}
               </div>
             </div>
 
-            {/* شريط التقدم */}
             <div className="mt-3 w-full h-2 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
               <div
                 className="h-full bg-gradient-to-r from-yellow-400 to-primary rounded-full transition-all duration-500"
@@ -351,27 +358,29 @@ const ProfilePage = () => {
     );
   };
 
+  // ✅ حالة عرض شاشة "لا يوجد ملف شخصي"
+  const shouldShowNoProfile = !profile || isProfileEmpty(profile);
+
   if (loading) return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
       <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
-  // ── حالة عدم وجود ملف شخصي ────────────────────────────────
-  if (!profile && !showCreateForm) {
+  if (shouldShowNoProfile && !showCreateForm) {
     return (
       <div className="container mx-auto p-4 max-w-4xl">
         <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
           <Heading title={t('nav.profile')} subtitle={t('profile.manageData')} />
           <button
             onClick={() => navigate('/')}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-xl text-sm hover:bg-gray-200 transition"
+            className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-xl text-sm hover:bg-gray-200 dark:hover:bg-gray-600 transition-all duration-200 hover:shadow-md active:scale-[0.98]"
           >
             <FaArrowRight /> {t('common.back')}
           </button>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-md py-8 p-8 text-center">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-md py-8 p-8 text-center animate-fade-up">
           <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-2">
             {t('profile.noProfile')}
           </h3>
@@ -387,35 +396,34 @@ const ProfilePage = () => {
           />
         </div>
 
-        {/* عرض إحصاءات التقييم حتى في حالة عدم وجود ملف */}
         {renderRatingStats()}
       </div>
     );
   }
 
-  // ── عرض الملف الشخصي ──────────────────────────────────────
   return (
     <div className="container mx-auto p-4 max-w-4xl">
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <Heading title={t('nav.profile')} subtitle={t('profile.manageData')} />
         <button
           onClick={() => navigate('/')}
-          className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-xl text-sm hover:bg-gray-200 transition"
+          className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-xl text-sm hover:bg-gray-200 dark:hover:bg-gray-600 transition-all duration-200 hover:shadow-md active:scale-[0.98]"
         >
           <FaArrowRight /> {t('common.back')}
         </button>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-md p-6 mb-6">
+      {/* ── الملف الشخصي ── */}
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-md p-6 mb-6 transition-shadow hover:shadow-xl animate-fade-up">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-bold text-gray-800 dark:text-white">
-            {profile ? t('profile.title') : t('profile.create')}
+            {profile && !isProfileEmpty(profile) ? t('profile.title') : t('profile.create')}
           </h2>
-          {profile ? (
+          {profile && !isProfileEmpty(profile) ? (
             <button
               onClick={isEditing ? handleProfileSave : () => setIsEditing(true)}
               disabled={savingProfile}
-              className="flex items-center gap-1.5 text-sm text-primary hover:text-primary/70 transition disabled:opacity-50"
+              className="flex items-center gap-1.5 text-sm text-primary hover:text-primary/70 transition-all duration-200 hover:scale-105 disabled:opacity-50"
             >
               {isEditing ? <><FaSave /> {savingProfile ? t('common.loading') : t('profile.save')}</> : <><FaEdit /> {t('profile.edit')}</>}
             </button>
@@ -423,7 +431,7 @@ const ProfilePage = () => {
             <button
               onClick={handleProfileSave}
               disabled={savingProfile}
-              className="flex items-center gap-1.5 text-sm text-primary hover:text-primary/70 transition disabled:opacity-50"
+              className="flex items-center gap-1.5 text-sm text-primary hover:text-primary/70 transition-all duration-200 hover:scale-105 disabled:opacity-50"
             >
               <FaSave /> {savingProfile ? t('common.loading') : t('profile.save')}
             </button>
@@ -431,11 +439,10 @@ const ProfilePage = () => {
         </div>
 
         <div className="space-y-5">
-          {/* Avatar */}
           <div className="flex items-center gap-4">
             <div className="relative">
               {avatarPreview ? (
-                <img src={avatarPreview} className="w-20 h-20 rounded-full object-cover ring-4 ring-primary/20" alt={t('profile.avatar')} />
+                <img src={avatarPreview} className="w-20 h-20 rounded-full object-cover ring-4 ring-primary/20 transition-all duration-200 hover:ring-primary/40" alt={t('profile.avatar')} />
               ) : (
                 <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
                   <FaUser className="text-3xl text-primary/60" />
@@ -444,7 +451,7 @@ const ProfilePage = () => {
               {(isEditing || showCreateForm) && (
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="absolute -bottom-1 -right-1 bg-primary text-white p-1.5 rounded-full hover:bg-primary/90 transition"
+                  className="absolute -bottom-1 -right-1 bg-primary text-white p-1.5 rounded-full hover:bg-primary/90 transition-all duration-200 hover:scale-110 shadow-md"
                 >
                   <FaCamera className="text-xs"/>
                 </button>
@@ -466,15 +473,14 @@ const ProfilePage = () => {
             </div>
           </div>
 
-          {/* الحقول */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Field label={t('profile.phone')}>
               <input
                 type="tel"
                 value={form.phone}
                 onChange={e => setForm(p => ({ ...p, phone: e.target.value }))}
-                disabled={!isEditing && !!profile}
-                className={inputCls(!isEditing && !!profile)}
+                disabled={!isEditing && !showCreateForm}
+                className={inputCls(!isEditing && !showCreateForm)}
                 placeholder={t('profile.phonePlaceholder')}
               />
             </Field>
@@ -482,8 +488,8 @@ const ProfilePage = () => {
               <select
                 value={form.gender}
                 onChange={e => setForm(p => ({ ...p, gender: e.target.value }))}
-                disabled={!isEditing && !!profile}
-                className={inputCls(!isEditing && !!profile)}
+                disabled={!isEditing && !showCreateForm}
+                className={inputCls(!isEditing && !showCreateForm)}
               >
                 <option value="">{t('profile.selectGender')}</option>
                 <option value="male">{t('profile.male')}</option>
@@ -494,25 +500,25 @@ const ProfilePage = () => {
               <input
                 value={form.country}
                 onChange={e => setForm(p => ({ ...p, country: e.target.value }))}
-                disabled={!isEditing && !!profile}
-                className={inputCls(!isEditing && !!profile)}
+                disabled={!isEditing && !showCreateForm}
+                className={inputCls(!isEditing && !showCreateForm)}
               />
             </Field>
             <Field label={t('profile.city')}>
               <input
                 value={form.city}
                 onChange={e => setForm(p => ({ ...p, city: e.target.value }))}
-                disabled={!isEditing && !!profile}
-                className={inputCls(!isEditing && !!profile)}
+                disabled={!isEditing && !showCreateForm}
+                className={inputCls(!isEditing && !showCreateForm)}
               />
             </Field>
             <Field label={t('profile.bio')}>
               <textarea
                 value={form.bio}
                 onChange={e => setForm(p => ({ ...p, bio: e.target.value }))}
-                disabled={!isEditing && !!profile}
+                disabled={!isEditing && !showCreateForm}
                 rows={2}
-                className={`${inputCls(!isEditing && !!profile)} resize-none col-span-2`}
+                className={`${inputCls(!isEditing && !showCreateForm)} resize-none col-span-2`}
               />
             </Field>
           </div>
@@ -522,18 +528,18 @@ const ProfilePage = () => {
               <label className="flex items-center gap-2 text-sm cursor-pointer">
                 <div
                   onClick={() => setForm(p => ({ ...p, is_location_public: !p.is_location_public }))}
-                  className={`w-10 h-5 rounded-full transition-colors ${form.is_location_public ? 'bg-primary' : 'bg-gray-300'} relative`}
+                  className={`w-10 h-5 rounded-full transition-colors duration-200 ${form.is_location_public ? 'bg-primary' : 'bg-gray-300'} relative`}
                 >
-                  <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${form.is_location_public ? 'right-0.5' : 'left-0.5'}`} />
+                  <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all duration-200 ${form.is_location_public ? 'right-0.5' : 'left-0.5'}`} />
                 </div>
                 {t('profile.showLocation')}
               </label>
               <label className="flex items-center gap-2 text-sm cursor-pointer">
                 <div
                   onClick={() => setForm(p => ({ ...p, is_phone_public: !p.is_phone_public }))}
-                  className={`w-10 h-5 rounded-full transition-colors ${form.is_phone_public ? 'bg-primary' : 'bg-gray-300'} relative`}
+                  className={`w-10 h-5 rounded-full transition-colors duration-200 ${form.is_phone_public ? 'bg-primary' : 'bg-gray-300'} relative`}
                 >
-                  <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${form.is_phone_public ? 'right-0.5' : 'left-0.5'}`} />
+                  <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all duration-200 ${form.is_phone_public ? 'right-0.5' : 'left-0.5'}`} />
                 </div>
                 {t('profile.showPhone')}
               </label>
@@ -541,15 +547,15 @@ const ProfilePage = () => {
           )}
 
           {(isEditing || showCreateForm) && (
-            <div className="flex gap-3 pt-2">
+            <div className="flex gap-3 pt-2 flex-wrap">
               <Button
-                text={savingProfile ? t('common.loading') : (profile ? t('profile.save') : t('profile.create'))}
+                text={savingProfile ? t('common.loading') : (profile && !isProfileEmpty(profile) ? t('profile.save') : t('profile.create'))}
                 handler={handleProfileSave}
                 bgColor="bg-primary"
                 textColor="text-white"
                 disabled={savingProfile}
               />
-              {profile && (
+              {profile && !isProfileEmpty(profile) && (
                 <Button
                   text={t('common.cancel')}
                   handler={() => { setIsEditing(false); setAvatarFile(null); }}
@@ -557,7 +563,7 @@ const ProfilePage = () => {
                   textColor="text-gray-700 dark:text-gray-300"
                 />
               )}
-              {!profile && (
+              {(!profile || isProfileEmpty(profile)) && (
                 <Button
                   text={t('common.cancel')}
                   handler={() => { setShowCreateForm(false); setIsEditing(false); setAvatarFile(null); }}
@@ -565,7 +571,7 @@ const ProfilePage = () => {
                   textColor="text-gray-700 dark:text-gray-300"
                 />
               )}
-              {profile && (
+              {profile && !isProfileEmpty(profile) && (
                 <Button
                   text={t('profile.delete')}
                   handler={handleDeleteProfile}
@@ -577,20 +583,20 @@ const ProfilePage = () => {
           )}
         </div>
 
-        {/* عرض إحصاءات التقييم داخل الملف الشخصي */}
         {renderRatingStats()}
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-md p-6">
+      {/* ── الموقع الجغرافي ── */}
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-md p-6 transition-shadow hover:shadow-xl animate-fade-up">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold text-gray-800 dark:text-white">{t('profile.location')}</h2>
           {loc?.latitude && (
             <button
               onClick={() => handleVisibility(!loc.is_location_public)}
-              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full transition ${
+              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full transition-all duration-200 ${
                 loc.is_location_public
-                  ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  ? 'bg-green-100 text-green-700 hover:bg-green-200 hover:scale-105'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:scale-105'
               }`}
             >
               {loc.is_location_public ? <><FaGlobe /> {t('profile.public')}</> : <><FaLock /> {t('profile.private')}</>}
@@ -598,14 +604,14 @@ const ProfilePage = () => {
           )}
         </div>
 
-        <div className="rounded-xl overflow-hidden mb-4">
+        <div className="rounded-xl overflow-hidden mb-4 transition-shadow hover:shadow-md">
           <LocationPickerMap
             initialLocation={mapInitLoc}
             onLocationSelect={handleMapSelect}
             height="280px"
           />
           {isFetchingAddr && (
-            <p className="text-xs text-gray-400 mt-1 text-center">{t('common.loading')}...</p>
+            <p className="text-xs text-gray-400 mt-1 text-center animate-pulse">{t('common.loading')}...</p>
           )}
         </div>
 

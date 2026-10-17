@@ -5,41 +5,84 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#F42C37" />
     <meta name="description" content="منصة الاستجابة المجتمعية لحالات الطوارئ — مساعدة فورية من متطوعين قريبين" />
+    <meta http-equiv="Content-Security-Policy" content="
+      default-src 'self';
+      script-src 'self' 'unsafe-inline' 'unsafe-eval' https:;
+      style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+      font-src 'self' https://fonts.gstatic.com;
+      img-src 'self' data: https: blob:;
+      connect-src 'self' https://emergency-grad.duckdns.org wss://emergency-grad.duckdns.org https://nominatim.openstreetmap.org https://tile.openstreetmap.org https://fonts.gstatic.com https://router.project-osrm.org;
+      frame-src 'none';
+      base-uri 'self';
+      form-action 'self';
+    " />
 
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
-    <!-- DNS prefetch للـ APIs والمصادر الخارجية -->
+    <!-- ── Preload للصورة الرئيسية (LCP) ── -->
+    <link rel="preload" as="image" href="/emergency.png" fetchpriority="high" />
+
+    <!-- ── تم إزالة preload لـ emergency.webp (غير موجودة) ── -->
+
+    <!-- ── Preconnect و DNS prefetch ── -->
     <link rel="dns-prefetch" href="//76.13.5.194" />
     <link rel="dns-prefetch" href="//nominatim.openstreetmap.org" />
     <link rel="dns-prefetch" href="//tile.openstreetmap.org" />
     <link rel="dns-prefetch" href="//fonts.gstatic.com" />
+    <link rel="dns-prefetch" href="//emergency-grad.duckdns.org" />
 
-    <!-- Preconnect للمصادر الحرجة -->
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://emergency-grad.duckdns.org" crossorigin />
+
+    <!-- ── Content Security Policy (CSP) ── -->
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'self';
+        script-src 'self' 'unsafe-inline' 'unsafe-eval' https:;
+        style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+        font-src 'self' https://fonts.gstatic.com;
+        img-src 'self' data: https: blob:;
+        connect-src 'self' https://emergency-grad.duckdns.org wss://emergency-grad.duckdns.org https://nominatim.openstreetmap.org https://tile.openstreetmap.org https://fonts.gstatic.com https://router.project-osrm.org;
+        frame-src 'none';
+        base-uri 'self';
+        form-action 'self';
+      " />
+
+    
+
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
 
     <title>E-Help — الاستجابة المجتمعية لحالات الطوارئ</title>
 
-    <!-- Open Graph للـ SEO -->
-    <meta property="og:title"       content="E-Help — الاستجابة المجتمعية" />
+    <!-- ── Open Graph / SEO ── -->
+    <meta property="og:title" content="E-Help — الاستجابة المجتمعية" />
     <meta property="og:description" content="مساعدة فورية من متطوعين قريبين. أبلغ عن حالات الطوارئ وأنقذ الأرواح." />
-    <meta property="og:type"        content="website" />
-    <meta property="og:image"       content="/emergency.png" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://zein-alkhnaisee.github.io/emergency-website/" />
+    <meta property="og:image" content="https://zein-alkhnaisee.github.io/emergency-website/emergency.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:site_name" content="E-Help" />
+    <meta property="og:locale" content="ar_AR" />
 
-    <!-- ✅ سكريبت إعادة التوجيه لحل مشكلة زر الرجوع والروابط -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="E-Help — الاستجابة المجتمعية" />
+    <meta name="twitter:description" content="مساعدة فورية من متطوعين قريبين." />
+    <meta name="twitter:image" content="https://zein-alkhnaisee.github.io/emergency-website/emergency.png" />
+
+    <!-- ✅ سكريبت إعادة التوجيه -->
     <script>
       (function() {
         var base = '/emergency-website/';
         var path = window.location.pathname;
-        // إذا كان المسار لا يبدأ بـ base ولا هو '/' أو '/index.html' ولا هو ملف (يحتوي على نقطة)
         if (
           !path.startsWith(base) &&
           path !== '/' &&
           path !== '' &&
           !path.match(/\.[a-zA-Z0-9]+$/)
         ) {
-          // إذا كان المسار '/register' مثلاً، نحوله إلى '/emergency-website/register'
           var newPath = base + path.replace(/^\//, '');
           window.location.replace(newPath);
         }

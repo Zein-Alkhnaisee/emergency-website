@@ -127,9 +127,9 @@ export const subscribeToUserNotificationsV2 = (userId, handlers = {}) => {
   const channelName = `user-notifications.${userId}`;
   const channel = echo.private(channelName);
 
-  channel.subscribed(() => {
-    console.log('✅ Subscribed to user-notifications channel v2');
-  });
+  // channel.subscribed(() => {
+  //   console.log('✅ Subscribed to user-notifications channel v2');
+  // });
 
   channel.error((error) => {
     console.warn('⚠️ user-notifications channel error:', error);

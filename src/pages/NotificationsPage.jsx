@@ -1,4 +1,3 @@
-// src/pages/NotificationsPage.jsx
 import React, { useEffect, useState, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
@@ -13,26 +12,13 @@ import {
   FaBell, FaArrowRight, FaSync, FaCheckCircle, FaTimesCircle,
   FaExclamationTriangle, FaClock, FaCheckDouble, FaCalendarPlus,
 } from 'react-icons/fa';
-
-const formatDate = (dateStr) => {
-  if (!dateStr) return '';
-  try {
-    const d = new Date(dateStr);
-    return d.toLocaleString('ar-EG', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  } catch { return ''; }
-};
+import { formatDate } from '../utils/dateHelpers';
 
 const NotifCard = ({ notif, t, onMarkRead }) => {
   const navigate = useNavigate();
   const isRead = notif.is_read;
   const type = notif.type || 'general';
 
-  // خريطة الأيقونات مع الألوان
   const iconMap = {
     sos_emergency: <FaExclamationTriangle className="text-red-500 text-xl" />,
     trust_verification_approved: <FaCheckCircle className="text-green-500 text-xl" />,
@@ -57,11 +43,11 @@ const NotifCard = ({ notif, t, onMarkRead }) => {
   return (
     <div
       onClick={handleClick}
-      className={`rounded-2xl p-4 border transition-all cursor-pointer hover:shadow-md ${
+      className={`rounded-2xl p-4 border transition-all duration-200 cursor-pointer hover:shadow-xl hover:scale-[1.01] ${
         isRead
           ? 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'
           : 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
-      }`}
+      } animate-fade-up`}
     >
       <div className="flex items-start gap-3">
         <span className="text-2xl shrink-0 mt-1">{icon}</span>
@@ -124,8 +110,6 @@ const NotificationsPage = () => {
 
   const handleMarkRead = async (id) => {
     await dispatch(markNotificationReadThunk(id)).unwrap();
-    // تحديث القائمة محلياً (يمكن إعادة جلب، أو تحديث الحالة في الـ Redux)
-    // لكن المارك ريد يحدّث الحالة تلقائياً في الـ Slice
   };
 
   const loadMore = () => {
@@ -148,7 +132,7 @@ const NotificationsPage = () => {
       <div className="flex justify-between items-center mb-6">
         <button
           onClick={() => navigate('/')}
-          className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-xl text-sm hover:bg-gray-200 transition"
+          className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-xl text-sm hover:bg-gray-200 dark:hover:bg-gray-600 transition-all duration-200 hover:shadow-md active:scale-[0.98]"
         >
           <FaArrowRight /> {t('common.back')}
         </button>
@@ -161,7 +145,7 @@ const NotificationsPage = () => {
           <button
             onClick={handleRefresh}
             disabled={refreshing}
-            className="flex items-center gap-1 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 rounded-xl text-sm hover:bg-gray-200 transition disabled:opacity-50"
+            className="flex items-center gap-1 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 rounded-xl text-sm hover:bg-gray-200 dark:hover:bg-gray-600 transition-all duration-200 disabled:opacity-50"
           >
             <FaSync className={`${refreshing ? 'animate-spin' : ''}`} />
             {t('common.refresh')}
@@ -172,7 +156,7 @@ const NotificationsPage = () => {
       <Heading title={t('notifications.title')} subtitle={t('notifications.subtitle')} />
 
       {userNotifications.length === 0 ? (
-        <div className="text-center py-20">
+        <div className="text-center py-20 animate-fade-up">
           <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
             <FaBell className="text-3xl text-gray-300" />
           </div>
@@ -191,7 +175,7 @@ const NotificationsPage = () => {
           {hasMore && (
             <button
               onClick={loadMore}
-              className="w-full py-2 text-sm text-primary hover:underline"
+              className="w-full py-2 text-sm text-primary hover:underline hover:text-primary/80 transition-colors"
             >
               {t('common.loadMore')}
             </button>
